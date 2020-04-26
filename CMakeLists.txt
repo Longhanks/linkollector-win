@@ -55,9 +55,14 @@ if(MSVC)
     endif()
 endif()
 
-add_executable(${PROJECT_NAME}
+add_executable(${PROJECT_NAME} WIN32
     src/main.cpp
 )
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE)
+target_compile_definitions(${PROJECT_NAME} PRIVATE _UNICODE)
 
 # Disable exceptions
 if(MSVC)
@@ -78,7 +83,6 @@ endif()
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
 
-    target_compile_definitions(${PROJECT_NAME} PRIVATE NOGDI)
     target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
     target_compile_definitions(${PROJECT_NAME} PRIVATE VC_EXTRALEAN)
     target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN)
