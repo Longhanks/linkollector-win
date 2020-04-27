@@ -56,13 +56,18 @@ if(MSVC)
 endif()
 
 add_executable(${PROJECT_NAME} WIN32
+    src/constants.cpp
+    src/handlers.cpp
+    src/line.cpp
     src/main.cpp
 )
 
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
-
 target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE)
 target_compile_definitions(${PROJECT_NAME} PRIVATE _UNICODE)
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+
+target_link_libraries(${PROJECT_NAME} PRIVATE Comctl32.dll)
 
 # Disable exceptions
 if(MSVC)

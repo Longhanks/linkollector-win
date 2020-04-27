@@ -1,92 +1,23 @@
+#include "constants.h"
+#include "line.h"
+
 #include <cstdlib>
 #include <string>
 
 #include <Windows.h>
-#include <shellapi.h>
 
 #include <CommCtrl.h>
 
-static void handle_url(const std::string &url) noexcept {
-    const int wide_char_characters =
-        MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, nullptr, 0);
-
-    std::wstring out(static_cast<std::size_t>(wide_char_characters), L'\0');
-
-    MultiByteToWideChar(
-        CP_UTF8, 0, url.c_str(), -1, out.data(), wide_char_characters);
-
-    ShellExecuteW(
-        nullptr, nullptr, out.data(), nullptr, nullptr, SW_SHOWNORMAL);
-}
-
-static constexpr const int window_name_max_size = 256;
-
-static void handle_text(const std::string &text) noexcept {
-    HWND notepad_window = nullptr;
-    STARTUPINFOW startupInfo{};
-    PROCESS_INFORMATION processInfo{};
-
-    std::wstring notepad_exe(L"notepad.exe");
-
-    if (CreateProcessW(nullptr,
-                       notepad_exe.data(),
-                       nullptr,
-                       nullptr,
-                       FALSE,
-                       0,
-                       nullptr,
-                       nullptr,
-                       &startupInfo,
-                       &processInfo) > 0) {
-        WaitForInputIdle(processInfo.hProcess, INFINITE);
-
-        DWORD process_id = 0;
-        HWND window = GetWindow(GetDesktopWindow(), GW_CHILD);
-        while (window != nullptr) {
-            DWORD thread_id = GetWindowThreadProcessId(window, &process_id);
-            if ((thread_id == processInfo.dwThreadId) &&
-                (process_id == processInfo.dwProcessId)) {
-                std::wstring class_name;
-                class_name.resize(window_name_max_size);
-
-                const auto actual_size =
-                    static_cast<std::size_t>(GetClassNameW(
-                        window, class_name.data(), window_name_max_size));
-
-                class_name.resize(actual_size);
-
-                if (class_name == L"Notepad") {
-                    notepad_window = window;
-                    break;
-                }
-            }
-            window = GetWindow(window, GW_HWNDNEXT);
-        }
-    }
-
-    const int wide_char_characters =
-        MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
-
-    std::wstring out(static_cast<std::size_t>(wide_char_characters), L'\0');
-
-    MultiByteToWideChar(
-        CP_UTF8, 0, text.c_str(), -1, out.data(), wide_char_characters);
-
-    auto *child = FindWindowExW(notepad_window, nullptr, L"Edit", nullptr);
-    SendMessageW(child, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(out.data()));
-}
-
-static constexpr const wchar_t *MAIN_WINDOW_CLASS_NAME =
-    L"Linkollector Main Main Window";
-
 static HFONT system_font;
 static HWND button_receive;
-static HWND button_send;
+static HWND separator_line_left;
+static HWND label_or;
+static HWND separator_line_right;
 
-static LRESULT CALLBACK main_window_proc(HWND hwnd,
-                                         UINT message_code,
-                                         WPARAM w_param,
-                                         LPARAM l_param) noexcept {
+static LRESULT CALLBACK main_window_f(HWND hwnd,
+                                      UINT message_code,
+                                      WPARAM w_param,
+                                      LPARAM l_param) noexcept {
 
     switch (message_code) {
     case WM_CREATE: {
@@ -97,45 +28,139 @@ static LRESULT CALLBACK main_window_proc(HWND hwnd,
         system_font = CreateFontIndirectW(&metrics.lfMessageFont);
 
         button_receive =
-            CreateWindowExW(0L,
+            CreateWindowExW(0,
                             L"BUTTON",
-                            L"Receive",
+                            L"Receive...",
                             WS_TABSTOP | WS_VISIBLE | WS_CHILD,
-                            55,
-                            6,
-                            75,
-                            23,
+                            0,
+                            0,
+                            0,
+                            0,
                             hwnd,
                             nullptr,
                             reinterpret_cast<HINSTANCE>(
                                 GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
                             nullptr);
 
-        button_send =
-            CreateWindowExW(0L,
-                            L"BUTTON",
-                            L"Send",
-                            WS_TABSTOP | WS_VISIBLE | WS_CHILD,
-                            55,
-                            33,
-                            75,
-                            23,
-                            hwnd,
-                            nullptr,
-                            reinterpret_cast<HINSTANCE>(
-                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
-                            nullptr);
         SendMessageW(button_receive,
                      WM_SETFONT,
                      reinterpret_cast<WPARAM>(system_font),
                      MAKELPARAM(TRUE, 0));
 
-        SendMessageW(button_send,
+        label_or =
+            CreateWindowExW(0,
+                            L"STATIC",
+                            L"Or",
+                            WS_VISIBLE | WS_CHILD | SS_CENTER,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(label_or,
                      WM_SETFONT,
                      reinterpret_cast<WPARAM>(system_font),
                      MAKELPARAM(TRUE, 0));
 
+        separator_line_left =
+            CreateWindowExW(0,
+                            L"STATIC",
+                            nullptr,
+                            WS_VISIBLE | WS_CHILD,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        separator_line_right =
+            CreateWindowExW(0,
+                            L"STATIC",
+                            nullptr,
+                            WS_VISIBLE | WS_CHILD,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SetWindowSubclass(separator_line_left, line_window_f, 0, 0);
+        SetWindowSubclass(separator_line_right, line_window_f, 0, 0);
+
         return 0;
+    }
+
+    case WM_SIZE: {
+
+        RECT main_window_rect;
+        GetClientRect(hwnd, &main_window_rect);
+
+        HDC hdc = GetDC(hwnd);
+
+        const auto label_or_string_size = GetWindowTextLengthW(label_or);
+        std::wstring label_or_string;
+        label_or_string.resize(static_cast<std::size_t>(label_or_string_size));
+        GetWindowTextW(label_or, label_or_string.data(), label_or_string_size);
+
+        SIZE size_or;
+        GetTextExtentPoint32W(
+            hdc, label_or_string.data(), label_or_string_size, &size_or);
+
+        SetWindowPos(label_or,
+                     HWND_TOP,
+                     ((main_window_rect.right / 2) - (size_or.cx / 2)),
+                     ((main_window_rect.bottom / 2) - (size_or.cy / 2)),
+                     size_or.cx,
+                     size_or.cy,
+                     0);
+
+        SetWindowPos(separator_line_left,
+                     HWND_TOP,
+                     LINE_PADDING,
+                     (main_window_rect.bottom / 2),
+                     ((main_window_rect.right / 2) - (size_or.cx / 2) -
+                      (static_cast<LONG>(LINE_PADDING) * 2)),
+                     LINE_HEIGHT,
+                     0);
+
+        SetWindowPos(separator_line_right,
+                     HWND_TOP,
+                     (main_window_rect.right / 2) + (size_or.cx / 2) +
+                         static_cast<LONG>(LINE_PADDING),
+                     (main_window_rect.bottom / 2),
+                     ((main_window_rect.right / 2) - (size_or.cx / 2) -
+                      (static_cast<LONG>(LINE_PADDING) * 2)),
+                     LINE_HEIGHT,
+                     0);
+
+        SIZE button_receive_size;
+        Button_GetIdealSize(button_receive, &button_receive_size);
+
+        SetWindowPos(
+            button_receive,
+            HWND_TOP,
+            ((main_window_rect.right / 2) - (button_receive_size.cx / 2)),
+            ((main_window_rect.bottom / 4) - (button_receive_size.cy / 2)),
+            button_receive_size.cx,
+            button_receive_size.cy,
+            0);
+
+        ReleaseDC(hwnd, hdc);
+
+        return DefWindowProcW(hwnd, message_code, w_param, l_param);
     }
 
     case WM_DESTROY: {
@@ -156,7 +181,7 @@ int WINAPI wWinMain(HINSTANCE hInstance,
     WNDCLASSEXW wc;
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.style = 0;
-    wc.lpfnWndProc = main_window_proc;
+    wc.lpfnWndProc = main_window_f;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = hInstance;
