@@ -14,6 +14,73 @@ static HWND separator_line_left;
 static HWND label_or;
 static HWND separator_line_right;
 
+static void autolayout(HWND hwnd, UINT dpi) noexcept {
+    const auto dpiscaled = [&dpi](int val) -> int {
+        return MulDiv(val, static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+    };
+
+    RECT main_window_rect;
+    GetClientRect(hwnd, &main_window_rect);
+
+    HDC hdc = GetDC(hwnd);
+
+    const auto label_or_string_size = GetWindowTextLengthW(label_or);
+    std::wstring label_or_string;
+    label_or_string.resize(static_cast<std::size_t>(label_or_string_size));
+    GetWindowTextW(label_or, label_or_string.data(), label_or_string_size);
+
+    SIZE size_label_or;
+    GetTextExtentPoint32W(
+        hdc, label_or_string.data(), label_or_string_size, &size_label_or);
+    size_label_or.cy = dpiscaled(size_label_or.cy);
+    size_label_or.cx = dpiscaled(size_label_or.cx);
+
+    SetWindowPos(label_or,
+                 nullptr,
+                 ((main_window_rect.right / 2) - (size_label_or.cx / 2)),
+                 ((main_window_rect.bottom / 2) - (size_label_or.cy / 2)),
+                 size_label_or.cx,
+                 size_label_or.cy,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    InvalidateRect(label_or, nullptr, FALSE);
+
+    SetWindowPos(separator_line_left,
+                 nullptr,
+                 /* x: */ dpiscaled(LINE_PADDING),
+                 /* y: */ (main_window_rect.bottom / 2),
+                 /* width: */
+                 ((main_window_rect.right / 2) - (size_label_or.cx / 2) -
+                  (dpiscaled(LINE_PADDING) * 2)),
+                 /* height: */ dpiscaled(LINE_HEIGHT),
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+
+    SetWindowPos(separator_line_right,
+                 nullptr,
+                 /* x: */ (main_window_rect.right / 2) +
+                     (size_label_or.cx / 2) + dpiscaled(LINE_PADDING),
+                 /* y: */ (main_window_rect.bottom / 2),
+                 /* width: */
+                 ((main_window_rect.right / 2) - (size_label_or.cx / 2) -
+                  (dpiscaled(LINE_PADDING) * 2)),
+                 /* height: */ dpiscaled(LINE_HEIGHT),
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+
+    SIZE button_receive_size;
+    Button_GetIdealSize(button_receive, &button_receive_size);
+
+    SetWindowPos(
+        button_receive,
+        nullptr,
+        /* x: */ ((main_window_rect.right / 2) - (button_receive_size.cx / 2)),
+        /* y: */
+        ((main_window_rect.bottom / 4) - (button_receive_size.cy / 2)),
+        /* width: */ button_receive_size.cx,
+        /* height: */ button_receive_size.cy,
+        SWP_NOZORDER | SWP_NOACTIVATE);
+
+    ReleaseDC(hwnd, hdc);
+}
+
 static LRESULT CALLBACK main_window_f(HWND hwnd,
                                       UINT message_code,
                                       WPARAM w_param,
@@ -21,11 +88,31 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
 
     switch (message_code) {
     case WM_CREATE: {
-        NONCLIENTMETRICS metrics;
-        metrics.cbSize = sizeof(NONCLIENTMETRICS);
-        SystemParametersInfoW(
-            SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &metrics, 0);
-        system_font = CreateFontIndirectW(&metrics.lfMessageFont);
+        UINT dpi = GetDpiForWindow(hwnd);
+        RECT rect_window;
+        GetWindowRect(hwnd, &rect_window);
+        rect_window.right =
+            rect_window.left +
+            MulDiv(WINDOW_WIDTH_96, dpi, USER_DEFAULT_SCREEN_DPI);
+        rect_window.bottom =
+            rect_window.top +
+            MulDiv(WINDOW_HEIGHT_96, dpi, USER_DEFAULT_SCREEN_DPI);
+        SetWindowPos(hwnd,
+                     nullptr,
+                     rect_window.right,
+                     rect_window.top,
+                     rect_window.right - rect_window.left,
+                     rect_window.bottom - rect_window.top,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
+
+        LOGFONT log_font;
+        SystemParametersInfoForDpi(SPI_GETICONTITLELOGFONT,
+                                   sizeof(log_font),
+                                   &log_font,
+                                   FALSE,
+                                   GetDpiForWindow(hwnd));
+
+        system_font = CreateFontIndirectW(&log_font);
 
         button_receive =
             CreateWindowExW(0,
@@ -104,63 +191,43 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
     }
 
     case WM_SIZE: {
-
-        RECT main_window_rect;
-        GetClientRect(hwnd, &main_window_rect);
-
-        HDC hdc = GetDC(hwnd);
-
-        const auto label_or_string_size = GetWindowTextLengthW(label_or);
-        std::wstring label_or_string;
-        label_or_string.resize(static_cast<std::size_t>(label_or_string_size));
-        GetWindowTextW(label_or, label_or_string.data(), label_or_string_size);
-
-        SIZE size_or;
-        GetTextExtentPoint32W(
-            hdc, label_or_string.data(), label_or_string_size, &size_or);
-
-        SetWindowPos(label_or,
-                     HWND_TOP,
-                     ((main_window_rect.right / 2) - (size_or.cx / 2)),
-                     ((main_window_rect.bottom / 2) - (size_or.cy / 2)),
-                     size_or.cx,
-                     size_or.cy,
-                     0);
-
-        SetWindowPos(separator_line_left,
-                     HWND_TOP,
-                     LINE_PADDING,
-                     (main_window_rect.bottom / 2),
-                     ((main_window_rect.right / 2) - (size_or.cx / 2) -
-                      (static_cast<LONG>(LINE_PADDING) * 2)),
-                     LINE_HEIGHT,
-                     0);
-
-        SetWindowPos(separator_line_right,
-                     HWND_TOP,
-                     (main_window_rect.right / 2) + (size_or.cx / 2) +
-                         static_cast<LONG>(LINE_PADDING),
-                     (main_window_rect.bottom / 2),
-                     ((main_window_rect.right / 2) - (size_or.cx / 2) -
-                      (static_cast<LONG>(LINE_PADDING) * 2)),
-                     LINE_HEIGHT,
-                     0);
-
-        SIZE button_receive_size;
-        Button_GetIdealSize(button_receive, &button_receive_size);
-
-        SetWindowPos(
-            button_receive,
-            HWND_TOP,
-            ((main_window_rect.right / 2) - (button_receive_size.cx / 2)),
-            ((main_window_rect.bottom / 4) - (button_receive_size.cy / 2)),
-            button_receive_size.cx,
-            button_receive_size.cy,
-            0);
-
-        ReleaseDC(hwnd, hdc);
-
+        autolayout(hwnd, GetDpiForWindow(hwnd));
         return DefWindowProcW(hwnd, message_code, w_param, l_param);
+    }
+
+    case WM_DPICHANGED: {
+        auto *hwnd_new_rect = reinterpret_cast<RECT *>(l_param);
+
+        LOGFONT log_font;
+        SystemParametersInfoForDpi(SPI_GETICONTITLELOGFONT,
+                                   sizeof(log_font),
+                                   &log_font,
+                                   FALSE,
+                                   HIWORD(w_param));
+
+        DeleteObject(system_font);
+        system_font = CreateFontIndirectW(&log_font);
+
+        SendMessageW(button_receive,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SendMessageW(label_or,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SetWindowPos(hwnd,
+                     nullptr,
+                     hwnd_new_rect->left,
+                     hwnd_new_rect->top,
+                     hwnd_new_rect->right - hwnd_new_rect->left,
+                     hwnd_new_rect->bottom - hwnd_new_rect->top,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
+
+        autolayout(hwnd, HIWORD(w_param));
+        return 0;
     }
 
     case WM_DESTROY: {
@@ -178,6 +245,21 @@ int WINAPI wWinMain(HINSTANCE hInstance,
                     [[maybe_unused]] HINSTANCE hPrevInstance,
                     [[maybe_unused]] PWSTR pCmdLine,
                     int nCmdShow) {
+    if (SetProcessDpiAwarenessContext(
+            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) != TRUE) {
+        MessageBoxW(nullptr, L"Failed to set DPI awareness", nullptr, 0);
+        return EXIT_FAILURE;
+    }
+
+    INITCOMMONCONTROLSEX init_common_controls_ex;
+    init_common_controls_ex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+    init_common_controls_ex.dwICC = ICC_WIN95_CLASSES | ICC_STANDARD_CLASSES;
+    if (InitCommonControlsEx(&init_common_controls_ex) != TRUE) {
+        MessageBoxW(
+            nullptr, L"Failed to initialize common controls", nullptr, 0);
+        return EXIT_FAILURE;
+    }
+
     WNDCLASSEXW wc;
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.style = 0;
@@ -199,8 +281,8 @@ int WINAPI wWinMain(HINSTANCE hInstance,
                                 WS_OVERLAPPEDWINDOW,
                                 CW_USEDEFAULT,
                                 CW_USEDEFAULT,
-                                320,
-                                240,
+                                WINDOW_WIDTH_96,
+                                WINDOW_HEIGHT_96,
                                 HWND_DESKTOP,
                                 nullptr,
                                 hInstance,
