@@ -2,25 +2,24 @@
 #include "line.h"
 
 #include <cstdlib>
+#include <memory>
 #include <string>
 
 #include <Windows.h>
 
 #include <CommCtrl.h>
 
-static HFONT system_font;
-static HWND button_receive;
-static HWND separator_line_left;
-static HWND label_or;
-static HWND separator_line_right;
+static HFONT system_font = nullptr;
+static HWND button_receive = nullptr;
+static HWND separator_line_left = nullptr;
+static HWND label_or = nullptr;
+static HWND separator_line_right = nullptr;
+static int current_dpi = -1;
 
-static void autolayout(HWND hwnd, UINT dpi) noexcept {
+static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
     const auto dpiscaled = [&dpi](int val) -> int {
-        return MulDiv(val, static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+        return MulDiv(val, dpi, USER_DEFAULT_SCREEN_DPI);
     };
-
-    RECT main_window_rect;
-    GetClientRect(hwnd, &main_window_rect);
 
     HDC hdc = GetDC(hwnd);
 
@@ -34,49 +33,49 @@ static void autolayout(HWND hwnd, UINT dpi) noexcept {
         hdc, label_or_string.data(), label_or_string_size, &size_label_or);
     size_label_or.cy = dpiscaled(size_label_or.cy);
     size_label_or.cx = dpiscaled(size_label_or.cx);
+    const auto width_label_or = static_cast<int>(size_label_or.cx);
+    const auto height_label_or = static_cast<int>(size_label_or.cy);
 
     SetWindowPos(label_or,
                  nullptr,
-                 ((main_window_rect.right / 2) - (size_label_or.cx / 2)),
-                 ((main_window_rect.bottom / 2) - (size_label_or.cy / 2)),
+                 ((width / 2) - (width_label_or / 2)),
+                 ((height / 2) - (height_label_or / 2)),
                  size_label_or.cx,
                  size_label_or.cy,
                  SWP_NOZORDER | SWP_NOACTIVATE);
     InvalidateRect(label_or, nullptr, FALSE);
 
-    SetWindowPos(separator_line_left,
-                 nullptr,
-                 /* x: */ dpiscaled(LINE_PADDING),
-                 /* y: */ (main_window_rect.bottom / 2),
-                 /* width: */
-                 ((main_window_rect.right / 2) - (size_label_or.cx / 2) -
-                  (dpiscaled(LINE_PADDING) * 2)),
-                 /* height: */ dpiscaled(LINE_HEIGHT),
-                 SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowPos(
+        separator_line_left,
+        nullptr,
+        /* x: */ dpiscaled(LINE_PADDING),
+        /* y: */ (height / 2),
+        /* width: */
+        ((width / 2) - (width_label_or / 2) - (dpiscaled(LINE_PADDING) * 2)),
+        /* height: */ dpiscaled(LINE_HEIGHT),
+        SWP_NOZORDER | SWP_NOACTIVATE);
 
-    SetWindowPos(separator_line_right,
-                 nullptr,
-                 /* x: */ (main_window_rect.right / 2) +
-                     (size_label_or.cx / 2) + dpiscaled(LINE_PADDING),
-                 /* y: */ (main_window_rect.bottom / 2),
-                 /* width: */
-                 ((main_window_rect.right / 2) - (size_label_or.cx / 2) -
-                  (dpiscaled(LINE_PADDING) * 2)),
-                 /* height: */ dpiscaled(LINE_HEIGHT),
-                 SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowPos(
+        separator_line_right,
+        nullptr,
+        /* x: */ (width / 2) + (width_label_or / 2) + dpiscaled(LINE_PADDING),
+        /* y: */ (height / 2),
+        /* width: */
+        ((width / 2) - (width_label_or / 2) - (dpiscaled(LINE_PADDING) * 2)),
+        /* height: */ dpiscaled(LINE_HEIGHT),
+        SWP_NOZORDER | SWP_NOACTIVATE);
 
     SIZE button_receive_size;
     Button_GetIdealSize(button_receive, &button_receive_size);
 
-    SetWindowPos(
-        button_receive,
-        nullptr,
-        /* x: */ ((main_window_rect.right / 2) - (button_receive_size.cx / 2)),
-        /* y: */
-        ((main_window_rect.bottom / 4) - (button_receive_size.cy / 2)),
-        /* width: */ button_receive_size.cx,
-        /* height: */ button_receive_size.cy,
-        SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowPos(button_receive,
+                 nullptr,
+                 /* x: */ ((width / 2) - (button_receive_size.cx / 2)),
+                 /* y: */
+                 ((height / 4) - (button_receive_size.cy / 2)),
+                 /* width: */ button_receive_size.cx,
+                 /* height: */ button_receive_size.cy,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
 
     ReleaseDC(hwnd, hdc);
 }
@@ -85,32 +84,15 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
                                       UINT message_code,
                                       WPARAM w_param,
                                       LPARAM l_param) noexcept {
-
     switch (message_code) {
     case WM_CREATE: {
-        UINT dpi = GetDpiForWindow(hwnd);
-        RECT rect_window;
-        GetWindowRect(hwnd, &rect_window);
-        rect_window.right =
-            rect_window.left +
-            MulDiv(WINDOW_WIDTH_96, dpi, USER_DEFAULT_SCREEN_DPI);
-        rect_window.bottom =
-            rect_window.top +
-            MulDiv(WINDOW_HEIGHT_96, dpi, USER_DEFAULT_SCREEN_DPI);
-        SetWindowPos(hwnd,
-                     nullptr,
-                     rect_window.right,
-                     rect_window.top,
-                     rect_window.right - rect_window.left,
-                     rect_window.bottom - rect_window.top,
-                     SWP_NOZORDER | SWP_NOACTIVATE);
-
+        current_dpi = static_cast<int>(GetDpiForWindow(hwnd));
         LOGFONT log_font;
         SystemParametersInfoForDpi(SPI_GETICONTITLELOGFONT,
                                    sizeof(log_font),
                                    &log_font,
                                    FALSE,
-                                   GetDpiForWindow(hwnd));
+                                   static_cast<UINT>(current_dpi));
 
         system_font = CreateFontIndirectW(&log_font);
 
@@ -187,12 +169,87 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
         SetWindowSubclass(separator_line_left, line_window_f, 0, 0);
         SetWindowSubclass(separator_line_right, line_window_f, 0, 0);
 
+        auto *create_struct = reinterpret_cast<CREATESTRUCTW *>(l_param);
+
+        const int cmd_show =
+            *static_cast<int *>(create_struct->lpCreateParams);
+
+        // 1. GetClientRect returns (0, 0) as origin and the client area width
+        // and height.
+        RECT main_window_client_rect;
+        GetClientRect(hwnd, &main_window_client_rect);
+
+        // 2. MapWindowPoints translates the origin to absolute screen
+        // coordinates.
+        MapWindowPoints(hwnd,
+                        nullptr,
+                        reinterpret_cast<POINT *>(&main_window_client_rect),
+                        2);
+
+        // 3. The desired width and height are added to the origin coordinates.
+        main_window_client_rect.right =
+            main_window_client_rect.left +
+            MulDiv(WINDOW_WIDTH_96, current_dpi, USER_DEFAULT_SCREEN_DPI);
+        main_window_client_rect.bottom =
+            main_window_client_rect.top +
+            MulDiv(WINDOW_HEIGHT_96, current_dpi, USER_DEFAULT_SCREEN_DPI);
+
+        // 4. The absolute coordinates are adjusted for the non-client area.
+        AdjustWindowRectExForDpi(&main_window_client_rect,
+                                 WS_OVERLAPPEDWINDOW,
+                                 FALSE,
+                                 0,
+                                 static_cast<UINT>(current_dpi));
+
+        // 5. The absolute coordinates are used for the origin, and the
+        // window's width and height is calculated via the right and bottom
+        // coordinates.
+        MoveWindow(
+            hwnd,
+            main_window_client_rect.left,
+            main_window_client_rect.top,
+            main_window_client_rect.right - main_window_client_rect.left,
+            main_window_client_rect.bottom - main_window_client_rect.top,
+            TRUE);
+
+        ShowWindow(hwnd, cmd_show);
+
         return 0;
     }
 
     case WM_SIZE: {
-        autolayout(hwnd, GetDpiForWindow(hwnd));
+        const auto width = LOWORD(l_param);
+        const auto height = HIWORD(l_param);
+        autolayout(
+            hwnd, width, height, static_cast<int>(GetDpiForWindow(hwnd)));
         return DefWindowProcW(hwnd, message_code, w_param, l_param);
+    }
+
+    case WM_GETDPISCALEDSIZE: {
+        const auto previous_dpi = current_dpi;
+        current_dpi = static_cast<int>(w_param);
+        const auto scaling_factor =
+            static_cast<double>(current_dpi) / previous_dpi;
+
+        RECT client_area;
+        GetClientRect(hwnd, &client_area);
+
+        client_area.right = static_cast<LONG>(
+            static_cast<double>(client_area.right) * scaling_factor);
+        client_area.bottom = static_cast<LONG>(
+            static_cast<double>(client_area.bottom) * scaling_factor);
+
+        AdjustWindowRectExForDpi(&client_area,
+                                 WS_OVERLAPPEDWINDOW,
+                                 FALSE,
+                                 0,
+                                 static_cast<UINT>(current_dpi));
+
+        SIZE *new_size = reinterpret_cast<SIZE *>(l_param);
+        new_size->cx = client_area.right - client_area.left;
+        new_size->cy = client_area.bottom - client_area.top;
+
+        return TRUE;
     }
 
     case WM_DPICHANGED: {
@@ -225,8 +282,6 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
                      hwnd_new_rect->right - hwnd_new_rect->left,
                      hwnd_new_rect->bottom - hwnd_new_rect->top,
                      SWP_NOZORDER | SWP_NOACTIVATE);
-
-        autolayout(hwnd, HIWORD(w_param));
         return 0;
     }
 
@@ -275,20 +330,20 @@ int WINAPI wWinMain(HINSTANCE hInstance,
     wc.hIconSm = LoadIconW(nullptr, IDI_APPLICATION);
     RegisterClassExW(&wc);
 
-    HWND hwnd = CreateWindowExW(0,
-                                MAIN_WINDOW_CLASS_NAME,
-                                L"Linkollector",
-                                WS_OVERLAPPEDWINDOW,
-                                CW_USEDEFAULT,
-                                CW_USEDEFAULT,
-                                WINDOW_WIDTH_96,
-                                WINDOW_HEIGHT_96,
-                                HWND_DESKTOP,
-                                nullptr,
-                                hInstance,
-                                nullptr);
+    auto cmd_show = std::make_unique<int>(nCmdShow);
 
-    ShowWindow(hwnd, nCmdShow);
+    CreateWindowExW(0,
+                    MAIN_WINDOW_CLASS_NAME,
+                    L"Linkollector",
+                    WS_OVERLAPPEDWINDOW,
+                    CW_USEDEFAULT,
+                    CW_USEDEFAULT,
+                    CW_USEDEFAULT,
+                    CW_USEDEFAULT,
+                    nullptr,
+                    nullptr,
+                    hInstance,
+                    static_cast<void *>(cmd_show.get()));
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) != 0) {
