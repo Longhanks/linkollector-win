@@ -68,6 +68,12 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
     SIZE button_receive_size;
     Button_GetIdealSize(button_receive, &button_receive_size);
 
+    const int button_width_minimum = dpiscaled(BUTTON_WIDTH_MINIMUM_96);
+
+    if (button_receive_size.cx < button_width_minimum) {
+        button_receive_size.cx = button_width_minimum;
+    }
+
     SetWindowPos(button_receive,
                  nullptr,
                  /* x: */ ((width / 2) - (button_receive_size.cx / 2)),

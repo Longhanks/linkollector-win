@@ -12,3 +12,5 @@ constexpr const int LINE_HEIGHT = 1;
 
 constexpr const int WINDOW_WIDTH_96 = 640;
 constexpr const int WINDOW_HEIGHT_96 = 480;
+
+constexpr const int BUTTON_WIDTH_MINIMUM_96 = 75;
