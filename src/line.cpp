@@ -19,7 +19,6 @@ LRESULT CALLBACK line_window_f(HWND hwnd,
 
     HDC hdc = BeginPaint(hwnd, &ps);
     HGDIOBJ original = SelectObject(hdc, GetStockObject(DC_PEN));
-    SelectObject(hdc, GetStockObject(DC_PEN));
 
     SetDCPenColor(hdc, RGB(160, 160, 160));
     Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);

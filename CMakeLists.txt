@@ -60,6 +60,7 @@ add_executable(${PROJECT_NAME} WIN32
     src/handlers.cpp
     src/line.cpp
     src/main.cpp
+    src/textfield.cpp
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE)

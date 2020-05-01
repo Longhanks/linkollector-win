@@ -1,5 +1,6 @@
 #include "constants.h"
 #include "line.h"
+#include "textfield.h"
 
 #include <cstdlib>
 #include <memory>
@@ -14,6 +15,10 @@ static HWND button_receive = nullptr;
 static HWND separator_line_left = nullptr;
 static HWND label_or = nullptr;
 static HWND separator_line_right = nullptr;
+static HWND label_to_device = nullptr;
+static HWND text_field_to_device = nullptr;
+static HWND label_message_content = nullptr;
+static HWND text_field_message_content = nullptr;
 static int current_dpi = -1;
 
 static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
@@ -31,17 +36,15 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
     SIZE size_label_or;
     GetTextExtentPoint32W(
         hdc, label_or_string.data(), label_or_string_size, &size_label_or);
-    size_label_or.cy = dpiscaled(size_label_or.cy);
-    size_label_or.cx = dpiscaled(size_label_or.cx);
-    const auto width_label_or = static_cast<int>(size_label_or.cx);
-    const auto height_label_or = static_cast<int>(size_label_or.cy);
+    const auto width_label_or = dpiscaled(size_label_or.cx);
+    const auto height_label_or = dpiscaled(size_label_or.cy);
 
     SetWindowPos(label_or,
                  nullptr,
                  ((width / 2) - (width_label_or / 2)),
                  ((height / 2) - (height_label_or / 2)),
-                 size_label_or.cx,
-                 size_label_or.cy,
+                 width_label_or,
+                 height_label_or,
                  SWP_NOZORDER | SWP_NOACTIVATE);
     InvalidateRect(label_or, nullptr, FALSE);
 
@@ -83,6 +86,86 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
                  /* height: */ button_receive_size.cy,
                  SWP_NOZORDER | SWP_NOACTIVATE);
 
+    const auto label_to_device_string_size =
+        GetWindowTextLengthW(label_to_device);
+    std::wstring label_to_device_string;
+    label_to_device_string.resize(
+        static_cast<std::size_t>(label_to_device_string_size));
+    GetWindowTextW(label_to_device,
+                   label_to_device_string.data(),
+                   label_to_device_string_size);
+
+    SIZE size_label_to_device;
+    GetTextExtentPoint32W(hdc,
+                          label_to_device_string.data(),
+                          label_to_device_string_size,
+                          &size_label_to_device);
+
+    const auto label_to_device_y =
+        (height / 2) + (height_label_or / 2) + dpiscaled(CONTENT_PADDING);
+
+    SetWindowPos(label_to_device,
+                 nullptr,
+                 /* x: */ dpiscaled(CONTENT_PADDING),
+                 /* y: */ label_to_device_y,
+                 /* width: */ dpiscaled(size_label_to_device.cx),
+                 /* height: */ dpiscaled(size_label_to_device.cy),
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    InvalidateRect(label_to_device, nullptr, FALSE);
+
+    const auto text_field_to_device_y =
+        label_to_device_y + dpiscaled(size_label_to_device.cy) +
+        dpiscaled(LABEL_TO_TEXT_FIELD_PADDING_96);
+
+    SetWindowPos(text_field_to_device,
+                 nullptr,
+                 /* x: */ dpiscaled(CONTENT_PADDING),
+                 /* y: */ text_field_to_device_y,
+                 /* width: */ (width / 2) - (2 * dpiscaled(CONTENT_PADDING)),
+                 /* height: */ dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_96),
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+
+    const auto label_message_content_string_size =
+        GetWindowTextLengthW(label_message_content);
+    std::wstring label_message_content_string;
+    label_message_content_string.resize(
+        static_cast<std::size_t>(label_message_content_string_size));
+    GetWindowTextW(label_message_content,
+                   label_message_content_string.data(),
+                   label_message_content_string_size);
+
+    SIZE size_label_message_content;
+    GetTextExtentPoint32W(hdc,
+                          label_message_content_string.data(),
+                          label_message_content_string_size,
+                          &size_label_message_content);
+
+    const auto label_message_content_y =
+        text_field_to_device_y + dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_96) +
+        dpiscaled(CONTENT_PADDING);
+
+    SetWindowPos(label_message_content,
+                 nullptr,
+                 /* x: */ dpiscaled(CONTENT_PADDING),
+                 /* y: */ label_message_content_y,
+                 /* width: */ dpiscaled(size_label_message_content.cx),
+                 /* height: */ dpiscaled(size_label_message_content.cy),
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    InvalidateRect(label_message_content, nullptr, FALSE);
+
+    const auto text_field_message_content_y =
+        label_message_content_y + dpiscaled(size_label_message_content.cy) +
+        dpiscaled(LABEL_TO_TEXT_FIELD_PADDING_96);
+
+    SetWindowPos(text_field_message_content,
+                 nullptr,
+                 /* x: */ dpiscaled(CONTENT_PADDING),
+                 /* y: */ text_field_message_content_y,
+                 /* width: */ (width / 2) - (2 * dpiscaled(CONTENT_PADDING)),
+                 /* height: */ height - text_field_message_content_y -
+                     dpiscaled(CONTENT_PADDING),
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+
     ReleaseDC(hwnd, hdc);
 }
 
@@ -104,7 +187,7 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
 
         button_receive =
             CreateWindowExW(0,
-                            L"BUTTON",
+                            WC_BUTTON,
                             L"Receive...",
                             WS_TABSTOP | WS_VISIBLE | WS_CHILD,
                             0,
@@ -124,7 +207,7 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
 
         label_or =
             CreateWindowExW(0,
-                            L"STATIC",
+                            WC_STATIC,
                             L"Or",
                             WS_VISIBLE | WS_CHILD | SS_CENTER,
                             0,
@@ -144,7 +227,7 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
 
         separator_line_left =
             CreateWindowExW(0,
-                            L"STATIC",
+                            WC_STATIC,
                             nullptr,
                             WS_VISIBLE | WS_CHILD,
                             0,
@@ -159,7 +242,7 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
 
         separator_line_right =
             CreateWindowExW(0,
-                            L"STATIC",
+                            WC_STATIC,
                             nullptr,
                             WS_VISIBLE | WS_CHILD,
                             0,
@@ -174,6 +257,98 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
 
         SetWindowSubclass(separator_line_left, line_window_f, 0, 0);
         SetWindowSubclass(separator_line_right, line_window_f, 0, 0);
+
+        label_to_device =
+            CreateWindowExW(0,
+                            WC_STATIC,
+                            L"To:",
+                            WS_VISIBLE | WS_CHILD | SS_LEFT,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(label_to_device,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        text_field_to_device =
+            CreateWindowExW(WS_EX_CLIENTEDGE,
+                            WC_EDIT,
+                            nullptr,
+                            WS_VISIBLE | WS_CHILD | ES_WANTRETURN |
+                                ES_MULTILINE | ES_AUTOHSCROLL,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(text_field_to_device,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SetWindowSubclass(text_field_to_device,
+                          text_field_window_f,
+                          ID_TEXT_FIELD_TO_DEVICE,
+                          0);
+
+        label_message_content =
+            CreateWindowExW(0,
+                            WC_STATIC,
+                            L"Content:",
+                            WS_VISIBLE | WS_CHILD | SS_LEFT,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(label_message_content,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        text_field_message_content =
+            CreateWindowExW(WS_EX_CLIENTEDGE,
+                            WC_EDIT,
+                            nullptr,
+                            WS_VISIBLE | WS_CHILD | ES_WANTRETURN |
+                                ES_MULTILINE | ES_AUTOVSCROLL,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(text_field_message_content,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SetWindowSubclass(text_field_message_content,
+                          text_field_window_f,
+                          ID_TEXT_FIELD_MESSAGE_CONTENT,
+                          0);
 
         auto *create_struct = reinterpret_cast<CREATESTRUCTW *>(l_param);
 
@@ -281,6 +456,26 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
                      reinterpret_cast<WPARAM>(system_font),
                      MAKELPARAM(TRUE, 0));
 
+        SendMessageW(label_to_device,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SendMessageW(text_field_to_device,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SendMessageW(label_message_content,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SendMessageW(text_field_message_content,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
         SetWindowPos(hwnd,
                      nullptr,
                      hwnd_new_rect->left,
@@ -328,12 +523,12 @@ int WINAPI wWinMain(HINSTANCE hInstance,
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = hInstance;
-    wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    wc.hIcon = nullptr;
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = GetSysColorBrush(COLOR_BTNFACE);
     wc.lpszMenuName = nullptr;
     wc.lpszClassName = MAIN_WINDOW_CLASS_NAME;
-    wc.hIconSm = LoadIconW(nullptr, IDI_APPLICATION);
+    wc.hIconSm = nullptr;
     RegisterClassExW(&wc);
 
     auto cmd_show = std::make_unique<int>(nCmdShow);
@@ -358,4 +553,6 @@ int WINAPI wWinMain(HINSTANCE hInstance,
     }
 
     DeleteObject(system_font);
+
+    return EXIT_SUCCESS;
 }
