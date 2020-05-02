@@ -9,6 +9,7 @@
 #include <Windows.h>
 
 #include <CommCtrl.h>
+#include <windowsx.h>
 
 static HFONT system_font = nullptr;
 static HWND button_receive = nullptr;
@@ -19,12 +20,18 @@ static HWND label_to_device = nullptr;
 static HWND text_field_to_device = nullptr;
 static HWND label_message_content = nullptr;
 static HWND text_field_message_content = nullptr;
+static HWND group_box_message_type = nullptr;
+static HWND radio_button_message_type_url = nullptr;
+static HWND radio_button_message_type_text = nullptr;
+static HWND button_send = nullptr;
 static int current_dpi = -1;
 
 static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
     const auto dpiscaled = [&dpi](int val) -> int {
         return MulDiv(val, dpi, USER_DEFAULT_SCREEN_DPI);
     };
+
+    const int button_width_minimum = dpiscaled(BUTTON_WIDTH_MINIMUM_96);
 
     HDC hdc = GetDC(hwnd);
 
@@ -57,6 +64,7 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
         ((width / 2) - (width_label_or / 2) - (dpiscaled(LINE_PADDING) * 2)),
         /* height: */ dpiscaled(LINE_HEIGHT),
         SWP_NOZORDER | SWP_NOACTIVATE);
+    InvalidateRect(separator_line_left, nullptr, FALSE);
 
     SetWindowPos(
         separator_line_right,
@@ -67,11 +75,10 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
         ((width / 2) - (width_label_or / 2) - (dpiscaled(LINE_PADDING) * 2)),
         /* height: */ dpiscaled(LINE_HEIGHT),
         SWP_NOZORDER | SWP_NOACTIVATE);
+    InvalidateRect(separator_line_right, nullptr, FALSE);
 
     SIZE button_receive_size;
     Button_GetIdealSize(button_receive, &button_receive_size);
-
-    const int button_width_minimum = dpiscaled(BUTTON_WIDTH_MINIMUM_96);
 
     if (button_receive_size.cx < button_width_minimum) {
         button_receive_size.cx = button_width_minimum;
@@ -166,6 +173,70 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
                      dpiscaled(CONTENT_PADDING),
                  SWP_NOZORDER | SWP_NOACTIVATE);
 
+    SIZE radio_button_message_type_url_size;
+    Button_GetIdealSize(radio_button_message_type_url,
+                        &radio_button_message_type_url_size);
+
+    const auto radio_button_message_type_url_y =
+        label_to_device_y + dpiscaled(16);
+
+    SetWindowPos(radio_button_message_type_url,
+                 nullptr,
+                 /* x: */ (width / 2) + dpiscaled(CONTENT_PADDING) +
+                     dpiscaled(9),
+                 /* y: */ radio_button_message_type_url_y,
+                 /* width: */ radio_button_message_type_url_size.cx,
+                 /* height: */ radio_button_message_type_url_size.cy,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    InvalidateRect(radio_button_message_type_url, nullptr, FALSE);
+
+    SIZE radio_button_message_type_text_size;
+    Button_GetIdealSize(radio_button_message_type_text,
+                        &radio_button_message_type_text_size);
+
+    const auto radio_button_message_type_text_y =
+        radio_button_message_type_url_y +
+        radio_button_message_type_url_size.cy + dpiscaled(4);
+
+    SetWindowPos(radio_button_message_type_text,
+                 nullptr,
+                 /* x: */ (width / 2) + dpiscaled(CONTENT_PADDING) +
+                     dpiscaled(9),
+                 /* y: */ radio_button_message_type_text_y,
+                 /* width: */ radio_button_message_type_text_size.cx,
+                 /* height: */ radio_button_message_type_text_size.cy,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    InvalidateRect(radio_button_message_type_text, nullptr, FALSE);
+
+    SetWindowPos(group_box_message_type,
+                 nullptr,
+                 /* x: */ (width / 2) + dpiscaled(CONTENT_PADDING),
+                 /* y: */ label_to_device_y,
+                 /* width: */ (width / 2) - (2 * dpiscaled(CONTENT_PADDING)),
+                 /* height: */
+                 (radio_button_message_type_text_y +
+                  radio_button_message_type_text_size.cy + dpiscaled(9)) -
+                     label_to_device_y,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    InvalidateRect(group_box_message_type, nullptr, FALSE);
+
+    SIZE button_send_size;
+    Button_GetIdealSize(button_send, &button_send_size);
+
+    if (button_send_size.cx < button_width_minimum) {
+        button_send_size.cx = button_width_minimum;
+    }
+
+    SetWindowPos(
+        button_send,
+        nullptr,
+        /* x: */ (width - button_receive_size.cx - dpiscaled(CONTENT_PADDING)),
+        /* y: */
+        (height - button_receive_size.cy - dpiscaled(CONTENT_PADDING)),
+        /* width: */ button_receive_size.cx,
+        /* height: */ button_receive_size.cy,
+        SWP_NOZORDER | SWP_NOACTIVATE);
+
     ReleaseDC(hwnd, hdc);
 }
 
@@ -240,6 +311,8 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
                                 GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
                             nullptr);
 
+        SetWindowSubclass(separator_line_left, line_window_f, 0, 0);
+
         separator_line_right =
             CreateWindowExW(0,
                             WC_STATIC,
@@ -254,8 +327,6 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
                             reinterpret_cast<HINSTANCE>(
                                 GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
                             nullptr);
-
-        SetWindowSubclass(separator_line_left, line_window_f, 0, 0);
         SetWindowSubclass(separator_line_right, line_window_f, 0, 0);
 
         label_to_device =
@@ -349,6 +420,88 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
                           text_field_window_f,
                           ID_TEXT_FIELD_MESSAGE_CONTENT,
                           0);
+
+        group_box_message_type =
+            CreateWindowExW(0,
+                            WC_BUTTON,
+                            L"Message type",
+                            WS_VISIBLE | WS_CHILD | BS_GROUPBOX,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(group_box_message_type,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        radio_button_message_type_url =
+            CreateWindowExW(0,
+                            WC_BUTTON,
+                            L"URL",
+                            WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(radio_button_message_type_url,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        Button_SetCheck(radio_button_message_type_url, BST_CHECKED);
+
+        radio_button_message_type_text =
+            CreateWindowExW(0,
+                            WC_BUTTON,
+                            L"Text",
+                            WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(radio_button_message_type_text,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        button_send =
+            CreateWindowExW(0,
+                            WC_BUTTON,
+                            L"Send...",
+                            WS_TABSTOP | WS_VISIBLE | WS_CHILD,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(hwnd, GWLP_HINSTANCE)),
+                            nullptr);
+
+        SendMessageW(button_send,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
 
         auto *create_struct = reinterpret_cast<CREATESTRUCTW *>(l_param);
 
@@ -472,6 +625,26 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
                      MAKELPARAM(TRUE, 0));
 
         SendMessageW(text_field_message_content,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SendMessageW(group_box_message_type,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SendMessageW(radio_button_message_type_url,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SendMessageW(radio_button_message_type_text,
+                     WM_SETFONT,
+                     reinterpret_cast<WPARAM>(system_font),
+                     MAKELPARAM(TRUE, 0));
+
+        SendMessageW(button_send,
                      WM_SETFONT,
                      reinterpret_cast<WPARAM>(system_font),
                      MAKELPARAM(TRUE, 0));
