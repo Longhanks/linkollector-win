@@ -53,7 +53,6 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
                  width_label_or,
                  height_label_or,
                  SWP_NOZORDER | SWP_NOACTIVATE);
-    InvalidateRect(label_or, nullptr, FALSE);
 
     SetWindowPos(
         separator_line_left,
@@ -62,9 +61,8 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
         /* y: */ (height / 2),
         /* width: */
         ((width / 2) - (width_label_or / 2) - (dpiscaled(LINE_PADDING) * 2)),
-        /* height: */ dpiscaled(LINE_HEIGHT),
+        /* height: */ LINE_HEIGHT,
         SWP_NOZORDER | SWP_NOACTIVATE);
-    InvalidateRect(separator_line_left, nullptr, FALSE);
 
     SetWindowPos(
         separator_line_right,
@@ -73,9 +71,8 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
         /* y: */ (height / 2),
         /* width: */
         ((width / 2) - (width_label_or / 2) - (dpiscaled(LINE_PADDING) * 2)),
-        /* height: */ dpiscaled(LINE_HEIGHT),
+        /* height: */ LINE_HEIGHT,
         SWP_NOZORDER | SWP_NOACTIVATE);
-    InvalidateRect(separator_line_right, nullptr, FALSE);
 
     SIZE button_receive_size;
     Button_GetIdealSize(button_receive, &button_receive_size);
@@ -108,20 +105,19 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
                           label_to_device_string_size,
                           &size_label_to_device);
 
-    const auto label_to_device_y =
+    const auto bottom_half_y =
         (height / 2) + (height_label_or / 2) + dpiscaled(CONTENT_PADDING);
 
     SetWindowPos(label_to_device,
                  nullptr,
                  /* x: */ dpiscaled(CONTENT_PADDING),
-                 /* y: */ label_to_device_y,
+                 /* y: */ bottom_half_y,
                  /* width: */ dpiscaled(size_label_to_device.cx),
                  /* height: */ dpiscaled(size_label_to_device.cy),
                  SWP_NOZORDER | SWP_NOACTIVATE);
-    InvalidateRect(label_to_device, nullptr, FALSE);
 
     const auto text_field_to_device_y =
-        label_to_device_y + dpiscaled(size_label_to_device.cy) +
+        bottom_half_y + dpiscaled(size_label_to_device.cy) +
         dpiscaled(LABEL_TO_TEXT_FIELD_PADDING_96);
 
     SetWindowPos(text_field_to_device,
@@ -158,7 +154,6 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
                  /* width: */ dpiscaled(size_label_message_content.cx),
                  /* height: */ dpiscaled(size_label_message_content.cy),
                  SWP_NOZORDER | SWP_NOACTIVATE);
-    InvalidateRect(label_message_content, nullptr, FALSE);
 
     const auto text_field_message_content_y =
         label_message_content_y + dpiscaled(size_label_message_content.cy) +
@@ -178,17 +173,16 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
                         &radio_button_message_type_url_size);
 
     const auto radio_button_message_type_url_y =
-        label_to_device_y + dpiscaled(16);
+        bottom_half_y + dpiscaled(GROUP_BOX_TOP_PADDING_96);
 
     SetWindowPos(radio_button_message_type_url,
                  nullptr,
                  /* x: */ (width / 2) + dpiscaled(CONTENT_PADDING) +
-                     dpiscaled(9),
+                     dpiscaled(GROUP_BOX_LEFT_PADDING_96),
                  /* y: */ radio_button_message_type_url_y,
                  /* width: */ radio_button_message_type_url_size.cx,
                  /* height: */ radio_button_message_type_url_size.cy,
                  SWP_NOZORDER | SWP_NOACTIVATE);
-    InvalidateRect(radio_button_message_type_url, nullptr, FALSE);
 
     SIZE radio_button_message_type_text_size;
     Button_GetIdealSize(radio_button_message_type_text,
@@ -196,29 +190,29 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
 
     const auto radio_button_message_type_text_y =
         radio_button_message_type_url_y +
-        radio_button_message_type_url_size.cy + dpiscaled(4);
+        radio_button_message_type_url_size.cy +
+        dpiscaled(GROUP_BOX_BETWEEN_CHILDREN_PADDING_96);
 
     SetWindowPos(radio_button_message_type_text,
                  nullptr,
                  /* x: */ (width / 2) + dpiscaled(CONTENT_PADDING) +
-                     dpiscaled(9),
+                     dpiscaled(GROUP_BOX_LEFT_PADDING_96),
                  /* y: */ radio_button_message_type_text_y,
                  /* width: */ radio_button_message_type_text_size.cx,
                  /* height: */ radio_button_message_type_text_size.cy,
                  SWP_NOZORDER | SWP_NOACTIVATE);
-    InvalidateRect(radio_button_message_type_text, nullptr, FALSE);
 
     SetWindowPos(group_box_message_type,
                  nullptr,
                  /* x: */ (width / 2) + dpiscaled(CONTENT_PADDING),
-                 /* y: */ label_to_device_y,
+                 /* y: */ bottom_half_y,
                  /* width: */ (width / 2) - (2 * dpiscaled(CONTENT_PADDING)),
-                 /* height: */
-                 (radio_button_message_type_text_y +
-                  radio_button_message_type_text_size.cy + dpiscaled(9)) -
-                     label_to_device_y,
+                 /* height: */ dpiscaled(GROUP_BOX_TOP_PADDING_96) +
+                     radio_button_message_type_url_size.cy +
+                     dpiscaled(GROUP_BOX_BETWEEN_CHILDREN_PADDING_96) +
+                     radio_button_message_type_text_size.cy +
+                     dpiscaled(GROUP_BOX_BOTTOM_PADDING_96),
                  SWP_NOZORDER | SWP_NOACTIVATE);
-    InvalidateRect(group_box_message_type, nullptr, FALSE);
 
     SIZE button_send_size;
     Button_GetIdealSize(button_send, &button_send_size);
@@ -230,9 +224,10 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
     SetWindowPos(
         button_send,
         nullptr,
-        /* x: */ (width - button_receive_size.cx - dpiscaled(CONTENT_PADDING)),
+        /* x: */
+        (width + 1 - button_receive_size.cx - dpiscaled(CONTENT_PADDING)),
         /* y: */
-        (height - button_receive_size.cy - dpiscaled(CONTENT_PADDING)),
+        (height + 1 - button_receive_size.cy - dpiscaled(CONTENT_PADDING)),
         /* width: */ button_receive_size.cx,
         /* height: */ button_receive_size.cy,
         SWP_NOZORDER | SWP_NOACTIVATE);
@@ -659,6 +654,125 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
         return 0;
     }
 
+    case WM_GETMINMAXINFO: {
+        auto *min_max_info = reinterpret_cast<MINMAXINFO *>(l_param);
+        LONG &minimum_width = min_max_info->ptMinTrackSize.x;
+        LONG &minimum_height = min_max_info->ptMinTrackSize.y;
+
+        const auto dpi = static_cast<int>(GetDpiForWindow(hwnd));
+
+        const auto dpiscaled = [&dpi](int val) -> int {
+            return MulDiv(val, dpi, USER_DEFAULT_SCREEN_DPI);
+        };
+
+        const int button_width_minimum = dpiscaled(BUTTON_WIDTH_MINIMUM_96);
+
+        HDC hdc = GetDC(hwnd);
+
+        const auto label_or_string_size = GetWindowTextLengthW(label_or);
+        std::wstring label_or_string;
+        label_or_string.resize(static_cast<std::size_t>(label_or_string_size));
+        GetWindowTextW(label_or, label_or_string.data(), label_or_string_size);
+
+        SIZE size_label_or;
+        GetTextExtentPoint32W(
+            hdc, label_or_string.data(), label_or_string_size, &size_label_or);
+        const auto width_label_or = dpiscaled(size_label_or.cx);
+        const auto height_label_or = dpiscaled(size_label_or.cy);
+
+        SIZE button_receive_size;
+        Button_GetIdealSize(button_receive, &button_receive_size);
+
+        if (button_receive_size.cx < button_width_minimum) {
+            button_receive_size.cx = button_width_minimum;
+        }
+
+        const auto label_to_device_string_size =
+            GetWindowTextLengthW(label_to_device);
+        std::wstring label_to_device_string;
+        label_to_device_string.resize(
+            static_cast<std::size_t>(label_to_device_string_size));
+        GetWindowTextW(label_to_device,
+                       label_to_device_string.data(),
+                       label_to_device_string_size);
+
+        SIZE size_label_to_device;
+        GetTextExtentPoint32W(hdc,
+                              label_to_device_string.data(),
+                              label_to_device_string_size,
+                              &size_label_to_device);
+        const auto width_label_to_device = dpiscaled(size_label_to_device.cx);
+        const auto height_label_to_device = dpiscaled(size_label_to_device.cy);
+
+        const auto label_message_content_string_size =
+            GetWindowTextLengthW(label_message_content);
+        std::wstring label_message_content_string;
+        label_message_content_string.resize(
+            static_cast<std::size_t>(label_message_content_string_size));
+        GetWindowTextW(label_message_content,
+                       label_message_content_string.data(),
+                       label_message_content_string_size);
+
+        SIZE size_label_message_content;
+        GetTextExtentPoint32W(hdc,
+                              label_message_content_string.data(),
+                              label_message_content_string_size,
+                              &size_label_message_content);
+        const auto width_label_message_content =
+            dpiscaled(size_label_message_content.cx);
+        const auto height_label_message_content =
+            dpiscaled(size_label_message_content.cy);
+
+        SIZE radio_button_message_type_text_size;
+        Button_GetIdealSize(radio_button_message_type_text,
+                            &radio_button_message_type_text_size);
+
+        SIZE radio_button_message_type_url_size;
+        Button_GetIdealSize(radio_button_message_type_url,
+                            &radio_button_message_type_url_size);
+
+        // Height
+
+        minimum_height =
+            height_label_or +
+            (GetSystemMetricsForDpi(SM_CYFRAME, static_cast<UINT>(dpi)) * 2) +
+            GetSystemMetricsForDpi(SM_CYCAPTION, static_cast<UINT>(dpi)) +
+            dpiscaled(
+                (/* text fields */ 2 *
+                 /* top and bottom WS_EX_CLIENTEDGE */ 2 *
+                 /* thickness of WS_EX_CLIENTEDGE: 1 "visible" border pixel, 1
+                    "invisible" white pixel in the edit control */
+                 2));
+
+        const auto minimum_height_lower_left =
+            dpiscaled(CONTENT_PADDING) + height_label_to_device +
+            dpiscaled(LABEL_TO_TEXT_FIELD_PADDING_96) +
+            dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_96) +
+            dpiscaled(CONTENT_PADDING) + height_label_message_content +
+            dpiscaled(LABEL_TO_TEXT_FIELD_PADDING_96) +
+            dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_96) +
+            dpiscaled(CONTENT_PADDING);
+
+        const auto minimum_height_lower_right =
+            dpiscaled(CONTENT_PADDING) + dpiscaled(GROUP_BOX_TOP_PADDING_96) +
+            radio_button_message_type_url_size.cy +
+            dpiscaled(GROUP_BOX_BETWEEN_CHILDREN_PADDING_96) +
+            radio_button_message_type_text_size.cy +
+            dpiscaled(GROUP_BOX_BOTTOM_PADDING_96) +
+            dpiscaled(CONTENT_PADDING) + button_receive_size.cy +
+            dpiscaled(CONTENT_PADDING);
+
+        if (minimum_height_lower_left > minimum_height_lower_right) {
+            minimum_height += (2 * minimum_height_lower_left);
+        } else {
+            minimum_height += (2 * minimum_height_lower_right);
+        }
+
+        ReleaseDC(hwnd, hdc);
+
+        return 0;
+    }
+
     case WM_DESTROY: {
         PostQuitMessage(0);
         return 0;
@@ -691,7 +805,7 @@ int WINAPI wWinMain(HINSTANCE hInstance,
 
     WNDCLASSEXW wc;
     wc.cbSize = sizeof(WNDCLASSEX);
-    wc.style = 0;
+    wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = main_window_f;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
