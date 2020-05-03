@@ -16,7 +16,8 @@ constexpr const int WINDOW_HEIGHT_96 = 480;
 
 constexpr const int BUTTON_WIDTH_MINIMUM_96 = 75;
 constexpr const int LABEL_TO_TEXT_FIELD_PADDING_96 = 8;
-constexpr const int TEXT_FIELD_SINGLE_LINE_HEIGHT_96 = 23;
+constexpr const int TEXT_FIELD_SINGLE_LINE_HEIGHT_MINIMUM_96 = 23;
+constexpr const int TEXT_FIELD_WIDTH_MINIMUM_96 = 98;
 constexpr const int GROUP_BOX_TOP_PADDING_96 = 16;
 constexpr const int GROUP_BOX_LEFT_PADDING_96 = 9;
 constexpr const int GROUP_BOX_BOTTOM_PADDING_96 = 9;

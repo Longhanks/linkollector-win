@@ -2,6 +2,8 @@
 #include "line.h"
 #include "textfield.h"
 
+#include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -120,13 +122,14 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
         bottom_half_y + dpiscaled(size_label_to_device.cy) +
         dpiscaled(LABEL_TO_TEXT_FIELD_PADDING_96);
 
-    SetWindowPos(text_field_to_device,
-                 nullptr,
-                 /* x: */ dpiscaled(CONTENT_PADDING),
-                 /* y: */ text_field_to_device_y,
-                 /* width: */ (width / 2) - (2 * dpiscaled(CONTENT_PADDING)),
-                 /* height: */ dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_96),
-                 SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowPos(
+        text_field_to_device,
+        nullptr,
+        /* x: */ dpiscaled(CONTENT_PADDING),
+        /* y: */ text_field_to_device_y,
+        /* width: */ (width / 2) - (2 * dpiscaled(CONTENT_PADDING)),
+        /* height: */ dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_MINIMUM_96),
+        SWP_NOZORDER | SWP_NOACTIVATE);
 
     const auto label_message_content_string_size =
         GetWindowTextLengthW(label_message_content);
@@ -144,7 +147,8 @@ static void autolayout(HWND hwnd, int width, int height, int dpi) noexcept {
                           &size_label_message_content);
 
     const auto label_message_content_y =
-        text_field_to_device_y + dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_96) +
+        text_field_to_device_y +
+        dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_MINIMUM_96) +
         dpiscaled(CONTENT_PADDING);
 
     SetWindowPos(label_message_content,
@@ -677,7 +681,6 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
         SIZE size_label_or;
         GetTextExtentPoint32W(
             hdc, label_or_string.data(), label_or_string_size, &size_label_or);
-        const auto width_label_or = dpiscaled(size_label_or.cx);
         const auto height_label_or = dpiscaled(size_label_or.cy);
 
         SIZE button_receive_size;
@@ -731,27 +734,41 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
         Button_GetIdealSize(radio_button_message_type_url,
                             &radio_button_message_type_url_size);
 
-        // Height
+        const auto group_box_message_type_string_size =
+            GetWindowTextLengthW(group_box_message_type);
+        std::wstring group_box_message_type_string;
+        group_box_message_type_string.resize(
+            static_cast<std::size_t>(group_box_message_type_string_size));
+        GetWindowTextW(group_box_message_type,
+                       group_box_message_type_string.data(),
+                       group_box_message_type_string_size);
 
-        minimum_height =
-            height_label_or +
-            (GetSystemMetricsForDpi(SM_CYFRAME, static_cast<UINT>(dpi)) * 2) +
-            GetSystemMetricsForDpi(SM_CYCAPTION, static_cast<UINT>(dpi)) +
-            dpiscaled(
-                (/* text fields */ 2 *
-                 /* top and bottom WS_EX_CLIENTEDGE */ 2 *
-                 /* thickness of WS_EX_CLIENTEDGE: 1 "visible" border pixel, 1
-                    "invisible" white pixel in the edit control */
-                 2));
+        SIZE size_group_box_message_type;
+        GetTextExtentPoint32W(hdc,
+                              group_box_message_type_string.data(),
+                              group_box_message_type_string_size,
+                              &size_group_box_message_type);
+        const auto width_group_box_message_type =
+            dpiscaled(size_group_box_message_type.cx);
+
+        SIZE button_send_size;
+        Button_GetIdealSize(button_send, &button_send_size);
+
+        if (button_send_size.cx < button_width_minimum) {
+            button_send_size.cx = button_width_minimum;
+        }
+
+        // Height
 
         const auto minimum_height_lower_left =
             dpiscaled(CONTENT_PADDING) + height_label_to_device +
             dpiscaled(LABEL_TO_TEXT_FIELD_PADDING_96) +
-            dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_96) +
-            dpiscaled(CONTENT_PADDING) + height_label_message_content +
+            dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_MINIMUM_96) +
+            dpiscaled(2) + dpiscaled(CONTENT_PADDING) +
+            height_label_message_content +
             dpiscaled(LABEL_TO_TEXT_FIELD_PADDING_96) +
-            dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_96) +
-            dpiscaled(CONTENT_PADDING);
+            dpiscaled(TEXT_FIELD_SINGLE_LINE_HEIGHT_MINIMUM_96) +
+            dpiscaled(2) + dpiscaled(CONTENT_PADDING);
 
         const auto minimum_height_lower_right =
             dpiscaled(CONTENT_PADDING) + dpiscaled(GROUP_BOX_TOP_PADDING_96) +
@@ -759,14 +776,57 @@ static LRESULT CALLBACK main_window_f(HWND hwnd,
             dpiscaled(GROUP_BOX_BETWEEN_CHILDREN_PADDING_96) +
             radio_button_message_type_text_size.cy +
             dpiscaled(GROUP_BOX_BOTTOM_PADDING_96) +
-            dpiscaled(CONTENT_PADDING) + button_receive_size.cy +
+            dpiscaled(CONTENT_PADDING) + button_send_size.cy +
             dpiscaled(CONTENT_PADDING);
 
-        if (minimum_height_lower_left > minimum_height_lower_right) {
-            minimum_height += (2 * minimum_height_lower_left);
-        } else {
-            minimum_height += (2 * minimum_height_lower_right);
-        }
+        const std::array<int, 2> height_lower = {minimum_height_lower_left,
+                                                 minimum_height_lower_right};
+        const auto minimum_height_lower = *std::max_element(
+            std::begin(height_lower), std::end(height_lower));
+
+        minimum_height =
+            height_label_or +
+            (2 * GetSystemMetricsForDpi(SM_CYFRAME, static_cast<UINT>(dpi))) +
+            GetSystemMetricsForDpi(SM_CYCAPTION, static_cast<UINT>(dpi)) +
+            (2 * minimum_height_lower);
+
+        // Width
+
+        const auto minimum_width_upper = button_receive_size.cx;
+
+        const std::array<int, 3> widths_lower_left = {
+            width_label_to_device,
+            dpiscaled(TEXT_FIELD_WIDTH_MINIMUM_96) + dpiscaled(4),
+            width_label_message_content};
+
+        const auto minimum_width_lower_left = *std::max_element(
+            std::begin(widths_lower_left), std::end(widths_lower_left));
+
+        const std::array<int, 4> widths_lower_right = {
+            width_group_box_message_type,
+            (dpiscaled(GROUP_BOX_LEFT_PADDING_96) +
+             radio_button_message_type_url_size.cx) +
+                dpiscaled(GROUP_BOX_LEFT_PADDING_96),
+            (dpiscaled(GROUP_BOX_LEFT_PADDING_96) +
+             radio_button_message_type_text_size.cx) +
+                dpiscaled(GROUP_BOX_LEFT_PADDING_96),
+            button_send_size.cx};
+
+        const auto minimum_width_lower_right = *std::max_element(
+            std::begin(widths_lower_right), std::end(widths_lower_right));
+
+        const std::array<int, 2> widths_lower = {minimum_width_lower_left,
+                                                 minimum_width_lower_right};
+        const auto minimum_width_lower = *std::max_element(
+            std::begin(widths_lower), std::end(widths_lower));
+
+        const std::array<int, 2> widths = {minimum_width_upper,
+                                           minimum_width_lower};
+
+        minimum_width =
+            (2 * GetSystemMetricsForDpi(SM_CXFRAME, static_cast<UINT>(dpi))) +
+            (4 * dpiscaled(CONTENT_PADDING)) +
+            (2 * *std::max_element(std::begin(widths), std::end(widths)));
 
         ReleaseDC(hwnd, hdc);
 
