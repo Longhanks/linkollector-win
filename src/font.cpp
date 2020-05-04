@@ -13,6 +13,9 @@ font::font(font &&other) noexcept {
 
 font &font::operator=(font &&other) noexcept {
     if (this != &other) {
+        if (m_font != nullptr) {
+            DeleteObject(m_font);
+        }
         m_font = other.m_font;
         other.m_font = nullptr;
     }
