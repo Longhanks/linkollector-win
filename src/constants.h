@@ -4,8 +4,6 @@
 
 constexpr const int WINDOW_CLASS_NAME_MAX_SIZE = 256;
 
-constexpr const wchar_t *MAIN_WINDOW_CLASS_NAME = L"Linkollector Main Window";
-
 constexpr const int LINE_PADDING = 14;
 constexpr const int CONTENT_PADDING = 20;
 

@@ -1,4 +1,4 @@
-#include "textfield.h"
+#include "text_field.h"
 
 #include "constants.h"
 
@@ -8,12 +8,12 @@
 #include <CommCtrl.h>
 
 LRESULT CALLBACK
-text_field_window_f(HWND hwnd,
-                    UINT message_code,
-                    WPARAM w_param,
-                    LPARAM l_param,
-                    UINT_PTR subclass_id,
-                    [[maybe_unused]] DWORD_PTR ref_data) noexcept {
+text_field_proc(HWND hwnd,
+                UINT message_code,
+                WPARAM w_param,
+                LPARAM l_param,
+                UINT_PTR subclass_id,
+                [[maybe_unused]] DWORD_PTR ref_data) noexcept {
     if (message_code != WM_PAINT) {
         return DefSubclassProc(hwnd, message_code, w_param, l_param);
     }

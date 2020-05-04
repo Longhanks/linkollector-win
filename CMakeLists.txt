@@ -57,10 +57,12 @@ endif()
 
 add_executable(${PROJECT_NAME} WIN32
     src/constants.cpp
+    src/font.cpp
     src/handlers.cpp
     src/line.cpp
     src/main.cpp
-    src/textfield.cpp
+    src/main_window.cpp
+    src/text_field.cpp
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE)

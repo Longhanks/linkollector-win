@@ -2,12 +2,12 @@
 
 #include <CommCtrl.h>
 
-LRESULT CALLBACK line_window_f(HWND hwnd,
-                               UINT message_code,
-                               WPARAM w_param,
-                               LPARAM l_param,
-                               [[maybe_unused]] UINT_PTR subclass_id,
-                               [[maybe_unused]] DWORD_PTR ref_data) noexcept {
+LRESULT CALLBACK line_proc(HWND hwnd,
+                           UINT message_code,
+                           WPARAM w_param,
+                           LPARAM l_param,
+                           [[maybe_unused]] UINT_PTR subclass_id,
+                           [[maybe_unused]] DWORD_PTR ref_data) noexcept {
     if (message_code != WM_PAINT) {
         return DefSubclassProc(hwnd, message_code, w_param, l_param);
     }
