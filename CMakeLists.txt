@@ -57,6 +57,7 @@ endif()
 
 add_executable(${PROJECT_NAME} WIN32
     src/constants.cpp
+    src/dark_mode.cpp
     src/font.cpp
     src/handlers.cpp
     src/line.cpp

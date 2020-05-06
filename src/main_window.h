@@ -38,6 +38,7 @@ private:
     void on_dpi_changed(RECT &new_rect) noexcept;
     void on_get_min_max_info(LONG &minimum_width,
                              LONG &minimum_height) noexcept;
+    void on_color_scheme_changed() noexcept;
 
     void apply_font() noexcept;
     [[nodiscard]] int dpiscaled(int value) const noexcept;

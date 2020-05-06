@@ -1,6 +1,7 @@
 #include "main_window.h"
 
 #include "constants.h"
+#include "dark_mode.h"
 #include "line.h"
 #include "text_field.h"
 
@@ -124,6 +125,16 @@ LRESULT main_window::main_window_proc(HWND hwnd,
         return 0;
     }
 
+    case WM_SETTINGCHANGE: {
+        if (is_color_scheme_change(l_param)) {
+            auto *this_ = get_this();
+            if (this_ != nullptr) {
+                this_->on_color_scheme_changed();
+            }
+        }
+        return DefWindowProcW(hwnd, message_code, w_param, l_param);
+    }
+
     case WM_DESTROY: {
         PostQuitMessage(0);
         return 0;
@@ -137,6 +148,11 @@ LRESULT main_window::main_window_proc(HWND hwnd,
 
 void main_window::on_create() noexcept {
     m_current_dpi = static_cast<int>(GetDpiForWindow(m_hwnd));
+
+    enable_dark_mode(m_hwnd, true);
+    if (is_dark_mode_enabled()) {
+        refresh_non_client_area(m_hwnd);
+    }
 
     LOGFONT log_font;
     SystemParametersInfoForDpi(SPI_GETICONTITLELOGFONT,
@@ -649,6 +665,10 @@ void main_window::on_get_min_max_info(LONG &minimum_width,
         (2 * *std::max_element(std::begin(widths), std::end(widths)));
 
     ReleaseDC(m_hwnd, hdc);
+}
+
+void main_window::on_color_scheme_changed() noexcept {
+    refresh_non_client_area(m_hwnd);
 }
 
 void main_window::apply_font() noexcept {

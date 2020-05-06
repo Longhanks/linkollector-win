@@ -1,4 +1,5 @@
 #include "main_window.h"
+#include "dark_mode.h"
 
 #include <cstdlib>
 
@@ -10,6 +11,8 @@ int WINAPI wWinMain(HINSTANCE instance,
                     [[maybe_unused]] HINSTANCE hPrevInstance,
                     [[maybe_unused]] PWSTR pCmdLine,
                     int cmd_show) {
+    linkollector::win::init_dark_mode_support();
+
     if (SetProcessDpiAwarenessContext(
             DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) != TRUE) {
         MessageBoxW(nullptr, L"Failed to set DPI awareness", nullptr, 0);
