@@ -15,8 +15,7 @@ namespace linkollector::win {
 
 main_window::main_window(HINSTANCE instance, int cmd_show) noexcept
     : m_instance(instance), m_cmd_show(cmd_show) {
-    WNDCLASSEXW wc;
-    wc.cbSize = sizeof(WNDCLASSEX);
+    WNDCLASS wc;
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = main_window_proc;
     wc.cbClsExtra = 0;
@@ -27,8 +26,7 @@ main_window::main_window(HINSTANCE instance, int cmd_show) noexcept
     wc.hbrBackground = GetSysColorBrush(COLOR_BTNFACE);
     wc.lpszMenuName = nullptr;
     wc.lpszClassName = MAIN_WINDOW_CLASS_NAME;
-    wc.hIconSm = nullptr;
-    RegisterClassExW(&wc);
+    RegisterClassW(&wc);
 
     CreateWindowExW(0,
                     MAIN_WINDOW_CLASS_NAME,
