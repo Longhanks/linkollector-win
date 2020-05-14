@@ -18,6 +18,8 @@ public:
     main_window &operator=(main_window &&other) noexcept = default;
     ~main_window() noexcept = default;
 
+    [[nodiscard]] HWND get() noexcept;
+
 private:
     static inline constexpr const wchar_t *MAIN_WINDOW_CLASS_NAME =
         L"Linkollector Main Window";
@@ -34,11 +36,14 @@ private:
 
     void on_create() noexcept;
     void on_size(int width, int height) noexcept;
+    void on_activate(UINT state) noexcept;
+    void on_set_focus() noexcept;
     void on_get_dpi_scaled_size(int new_dpi, SIZE &new_size) noexcept;
     void on_dpi_changed(RECT &new_rect) noexcept;
     void on_get_min_max_info(LONG &minimum_width,
                              LONG &minimum_height) noexcept;
     void on_color_scheme_changed() noexcept;
+    void on_text_changed(HWND text_field) noexcept;
 
     void apply_font() noexcept;
     [[nodiscard]] int dpiscaled(int value) const noexcept;
@@ -52,6 +57,8 @@ private:
     int m_cmd_show = -1;
     int m_current_dpi = -1;
     font m_font;
+
+    HWND m_hwnd_last_focus = nullptr;
 
     HWND m_button_receive = nullptr;
     HWND m_separator_line_left = nullptr;

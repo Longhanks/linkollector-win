@@ -42,6 +42,10 @@ main_window::main_window(HINSTANCE instance, int cmd_show) noexcept
                     static_cast<void *>(this));
 }
 
+HWND main_window::get() noexcept {
+    return m_hwnd;
+}
+
 std::wstring main_window::hwnd_window_text(HWND hwnd) noexcept {
     const auto hwnd_string_size = GetWindowTextLengthW(hwnd);
     std::wstring hwnd_string;
@@ -93,6 +97,22 @@ LRESULT main_window::main_window_proc(HWND hwnd,
         return DefWindowProcW(hwnd, message_code, w_param, l_param);
     }
 
+    case WM_ACTIVATE: {
+        auto *this_ = get_this();
+        if (this_ != nullptr) {
+            this_->on_activate(LOWORD(w_param));
+        }
+        return DefWindowProcW(hwnd, message_code, w_param, l_param);
+    }
+
+    case WM_SETFOCUS: {
+        auto *this_ = get_this();
+        if (this_ != nullptr) {
+            this_->on_set_focus();
+        }
+        return DefWindowProcW(hwnd, message_code, w_param, l_param);
+    }
+
     case WM_GETDPISCALEDSIZE: {
         int new_dpi = static_cast<int>(w_param);
         SIZE *new_size = reinterpret_cast<SIZE *>(l_param);
@@ -130,6 +150,19 @@ LRESULT main_window::main_window_proc(HWND hwnd,
                 this_->on_color_scheme_changed();
             }
         }
+        return DefWindowProcW(hwnd, message_code, w_param, l_param);
+    }
+
+    case WM_COMMAND: {
+        auto *this_ = get_this();
+        if (this_ == nullptr) {
+            return DefWindowProcW(hwnd, message_code, w_param, l_param);
+        }
+
+        if (HIWORD(w_param) == EN_CHANGE) {
+            this_->on_text_changed(reinterpret_cast<HWND>(l_param));
+        }
+
         return DefWindowProcW(hwnd, message_code, w_param, l_param);
     }
 
@@ -228,19 +261,20 @@ void main_window::on_create() noexcept {
                                         m_instance,
                                         nullptr);
 
-    m_text_field_to_device = CreateWindowExW(
-        WS_EX_CLIENTEDGE,
-        WC_EDIT,
-        nullptr,
-        WS_VISIBLE | WS_CHILD | ES_WANTRETURN | ES_MULTILINE | ES_AUTOHSCROLL,
-        0,
-        0,
-        0,
-        0,
-        m_hwnd,
-        nullptr,
-        m_instance,
-        nullptr);
+    m_text_field_to_device =
+        CreateWindowExW(WS_EX_CLIENTEDGE,
+                        WC_EDIT,
+                        nullptr,
+                        WS_TABSTOP | WS_VISIBLE | WS_CHILD | ES_WANTRETURN |
+                            ES_MULTILINE | ES_AUTOHSCROLL,
+                        0,
+                        0,
+                        0,
+                        0,
+                        m_hwnd,
+                        nullptr,
+                        m_instance,
+                        nullptr);
     SetWindowSubclass(
         m_text_field_to_device, text_field_proc, ID_TEXT_FIELD_TO_DEVICE, 0);
 
@@ -257,19 +291,20 @@ void main_window::on_create() noexcept {
                                               m_instance,
                                               nullptr);
 
-    m_text_field_message_content = CreateWindowExW(
-        WS_EX_CLIENTEDGE,
-        WC_EDIT,
-        nullptr,
-        WS_VISIBLE | WS_CHILD | ES_WANTRETURN | ES_MULTILINE | ES_AUTOVSCROLL,
-        0,
-        0,
-        0,
-        0,
-        m_hwnd,
-        nullptr,
-        m_instance,
-        nullptr);
+    m_text_field_message_content =
+        CreateWindowExW(WS_EX_CLIENTEDGE,
+                        WC_EDIT,
+                        nullptr,
+                        WS_TABSTOP | WS_VISIBLE | WS_CHILD | ES_WANTRETURN |
+                            ES_MULTILINE | ES_AUTOVSCROLL,
+                        0,
+                        0,
+                        0,
+                        0,
+                        m_hwnd,
+                        nullptr,
+                        m_instance,
+                        nullptr);
     SetWindowSubclass(m_text_field_message_content,
                       text_field_proc,
                       ID_TEXT_FIELD_MESSAGE_CONTENT,
@@ -331,6 +366,7 @@ void main_window::on_create() noexcept {
                                     nullptr,
                                     m_instance,
                                     nullptr);
+    Button_Enable(m_button_send, FALSE);
 
     apply_font();
 
@@ -371,10 +407,12 @@ void main_window::on_create() noexcept {
                main_window_client_rect.bottom - main_window_client_rect.top,
                TRUE);
 
+    SetFocus(m_text_field_to_device);
+
     ShowWindow(m_hwnd, m_cmd_show);
 }
 
-void main_window::on_size(int width, int height) noexcept {
+void main_window::on_size(const int width, const int height) noexcept {
     HDC hdc = GetDC(m_hwnd);
 
     const auto [width_label_or, height_label_or] =
@@ -518,7 +556,23 @@ void main_window::on_size(int width, int height) noexcept {
     ReleaseDC(m_hwnd, hdc);
 }
 
-void main_window::on_get_dpi_scaled_size(int new_dpi,
+void main_window::on_activate(const UINT state) noexcept {
+    if (state != WA_INACTIVE) {
+        return;
+    }
+
+    m_hwnd_last_focus = GetFocus();
+}
+
+void main_window::on_set_focus() noexcept {
+    if (m_hwnd_last_focus == nullptr) {
+        return;
+    }
+
+    SetFocus(m_hwnd_last_focus);
+}
+
+void main_window::on_get_dpi_scaled_size(const int new_dpi,
                                          SIZE &new_size) noexcept {
     const auto scaling_factor = static_cast<double>(new_dpi) / m_current_dpi;
 
@@ -669,6 +723,15 @@ void main_window::on_color_scheme_changed() noexcept {
     refresh_non_client_area(m_hwnd);
 }
 
+void main_window::on_text_changed([[maybe_unused]] HWND text_field) noexcept {
+    const auto text_to_device = hwnd_window_text(m_text_field_to_device);
+    const auto text_message_content =
+        hwnd_window_text(m_text_field_message_content);
+    const bool button_send_enabled =
+        !(text_to_device.empty() || text_message_content.empty());
+    Button_Enable(m_button_send, button_send_enabled ? TRUE : FALSE);
+}
+
 void main_window::apply_font() noexcept {
     auto *system_font = m_font.get();
     const auto apply_to = [system_font](HWND hwnd) -> void {
@@ -690,7 +753,7 @@ void main_window::apply_font() noexcept {
     apply_to(m_button_send);
 }
 
-int main_window::dpiscaled(int value) const noexcept {
+int main_window::dpiscaled(const int value) const noexcept {
     return MulDiv(value, m_current_dpi, USER_DEFAULT_SCREEN_DPI);
 }
 
@@ -704,7 +767,7 @@ SIZE main_window::size_for_text(HDC hdc, const std::wstring &text) noexcept {
 }
 
 SIZE main_window::size_for_button(HWND button,
-                                  bool extend_width_if_needed) noexcept {
+                                  const bool extend_width_if_needed) noexcept {
     const int button_width_minimum = dpiscaled(BUTTON_WIDTH_MINIMUM_96);
     SIZE button_size;
     Button_GetIdealSize(button, &button_size);

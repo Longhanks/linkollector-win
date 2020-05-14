@@ -1,5 +1,5 @@
-#include "main_window.h"
 #include "dark_mode.h"
+#include "main_window.h"
 
 #include <cstdlib>
 
@@ -32,6 +32,11 @@ int WINAPI wWinMain(HINSTANCE instance,
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) != 0) {
+        if (main_window.get() != nullptr &&
+            IsDialogMessageW(main_window.get(), &msg) == TRUE) {
+            continue;
+        }
+
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }

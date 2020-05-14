@@ -14,8 +14,15 @@ text_field_proc(HWND hwnd,
                 LPARAM l_param,
                 UINT_PTR subclass_id,
                 [[maybe_unused]] DWORD_PTR ref_data) noexcept {
-    if (message_code != WM_PAINT) {
+    if (message_code != WM_PAINT && message_code != WM_GETDLGCODE) {
         return DefSubclassProc(hwnd, message_code, w_param, l_param);
+    }
+
+    if (message_code == WM_GETDLGCODE) {
+        auto return_value =
+            DefSubclassProc(hwnd, message_code, w_param, l_param);
+        return_value &= ~DLGC_WANTALLKEYS;
+        return return_value;
     }
 
     const auto text_field_string_size = GetWindowTextLengthW(hwnd);
