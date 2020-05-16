@@ -56,6 +56,7 @@ if(MSVC)
 endif()
 
 add_executable(${PROJECT_NAME} WIN32
+    src/acting_dialog.cpp
     src/constants.cpp
     src/dark_mode.cpp
     src/font.cpp

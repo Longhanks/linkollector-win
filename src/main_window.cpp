@@ -1,5 +1,6 @@
 #include "main_window.h"
 
+#include "acting_dialog.h"
 #include "constants.h"
 #include "dark_mode.h"
 #include "line.h"
@@ -163,6 +164,14 @@ LRESULT main_window::main_window_proc(HWND hwnd,
             this_->on_text_changed(reinterpret_cast<HWND>(l_param));
         }
 
+        else if (LOWORD(w_param) == main_window::m_button_receive_id) {
+            this_->on_pressed_receive();
+        }
+
+        else if (LOWORD(w_param) == main_window::m_button_send_id) {
+            this_->on_pressed_send();
+        }
+
         return DefWindowProcW(hwnd, message_code, w_param, l_param);
     }
 
@@ -194,18 +203,19 @@ void main_window::on_create() noexcept {
 
     m_font = font(log_font);
 
-    m_button_receive = CreateWindowExW(0,
-                                       WC_BUTTON,
-                                       L"Receive...",
-                                       WS_TABSTOP | WS_VISIBLE | WS_CHILD,
-                                       0,
-                                       0,
-                                       0,
-                                       0,
-                                       m_hwnd,
-                                       nullptr,
-                                       m_instance,
-                                       nullptr);
+    m_button_receive =
+        CreateWindowExW(0,
+                        WC_BUTTON,
+                        L"Receive...",
+                        WS_TABSTOP | WS_VISIBLE | WS_CHILD,
+                        0,
+                        0,
+                        0,
+                        0,
+                        m_hwnd,
+                        reinterpret_cast<HMENU>(m_button_receive_id),
+                        m_instance,
+                        nullptr);
 
     m_label_or = CreateWindowExW(0,
                                  WC_STATIC,
@@ -363,7 +373,7 @@ void main_window::on_create() noexcept {
                                     0,
                                     0,
                                     m_hwnd,
-                                    nullptr,
+                                    reinterpret_cast<HMENU>(m_button_send_id),
                                     m_instance,
                                     nullptr);
     Button_Enable(m_button_send, FALSE);
@@ -730,6 +740,14 @@ void main_window::on_text_changed([[maybe_unused]] HWND text_field) noexcept {
     const bool button_send_enabled =
         !(text_to_device.empty() || text_message_content.empty());
     Button_Enable(m_button_send, button_send_enabled ? TRUE : FALSE);
+}
+
+void main_window::on_pressed_receive() noexcept {
+    show_acting_dialog(m_instance, m_hwnd, L"Receiving...");
+}
+
+void main_window::on_pressed_send() noexcept {
+    show_acting_dialog(m_instance, m_hwnd, L"Sending...");
 }
 
 void main_window::apply_font() noexcept {

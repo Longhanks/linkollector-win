@@ -21,7 +21,8 @@ int WINAPI wWinMain(HINSTANCE instance,
 
     INITCOMMONCONTROLSEX init_common_controls_ex;
     init_common_controls_ex.dwSize = sizeof(INITCOMMONCONTROLSEX);
-    init_common_controls_ex.dwICC = ICC_WIN95_CLASSES | ICC_STANDARD_CLASSES;
+    init_common_controls_ex.dwICC =
+        ICC_PROGRESS_CLASS | ICC_WIN95_CLASSES | ICC_STANDARD_CLASSES;
     if (InitCommonControlsEx(&init_common_controls_ex) != TRUE) {
         MessageBoxW(
             nullptr, L"Failed to initialize common controls", nullptr, 0);

@@ -44,6 +44,8 @@ private:
                              LONG &minimum_height) noexcept;
     void on_color_scheme_changed() noexcept;
     void on_text_changed(HWND text_field) noexcept;
+    void on_pressed_receive() noexcept;
+    void on_pressed_send() noexcept;
 
     void apply_font() noexcept;
     [[nodiscard]] int dpiscaled(int value) const noexcept;
@@ -61,6 +63,7 @@ private:
     HWND m_hwnd_last_focus = nullptr;
 
     HWND m_button_receive = nullptr;
+    constexpr static const int m_button_receive_id = 100;
     HWND m_separator_line_left = nullptr;
     HWND m_label_or = nullptr;
     HWND m_separator_line_right = nullptr;
@@ -72,6 +75,7 @@ private:
     HWND m_radio_button_message_type_url = nullptr;
     HWND m_radio_button_message_type_text = nullptr;
     HWND m_button_send = nullptr;
+    constexpr static const int m_button_send_id = 101;
 };
 
 } // namespace linkollector::win
