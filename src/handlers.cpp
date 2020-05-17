@@ -5,6 +5,8 @@
 #include <Windows.h>
 #include <shellapi.h>
 
+namespace linkollector::win {
+
 void handle_url(const std::string &url) noexcept {
     const int wide_char_characters =
         MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, nullptr, 0);
@@ -73,3 +75,5 @@ void handle_text(const std::string &text) noexcept {
     auto *child = FindWindowExW(notepad_window, nullptr, L"Edit", nullptr);
     SendMessageW(child, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(out.data()));
 }
+
+} // namespace linkollector::win

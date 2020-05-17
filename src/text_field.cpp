@@ -7,6 +7,8 @@
 
 #include <CommCtrl.h>
 
+namespace linkollector::win {
+
 LRESULT CALLBACK
 text_field_proc(HWND hwnd,
                 UINT message_code,
@@ -89,3 +91,5 @@ text_field_proc(HWND hwnd,
     EndPaint(hwnd, &ps);
     return DefSubclassProc(hwnd, message_code, w_param, l_param);
 }
+
+} // namespace linkollector::win
