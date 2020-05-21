@@ -56,6 +56,12 @@ if(MSVC)
 endif()
 
 add_executable(${PROJECT_NAME} WIN32
+    src/wrappers/zmq/context.cpp
+    src/wrappers/zmq/poll.cpp
+    src/wrappers/zmq/poll_event.cpp
+    src/wrappers/zmq/poll_response.cpp
+    src/wrappers/zmq/poll_target.cpp
+    src/wrappers/zmq/socket.cpp
     src/acting_dialog.cpp
     src/constants.cpp
     src/dark_mode.cpp
@@ -192,3 +198,11 @@ else()
         /w14928
     )
 endif()
+
+add_subdirectory(extern)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE GSL)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC libzmq-static)
+get_target_property(ZMQ_INCLUDES_TO_SYSTEM libzmq-static INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${ZMQ_INCLUDES_TO_SYSTEM})
