@@ -1,6 +1,7 @@
 #pragma once
 
 #include "font.h"
+#include "wrappers/zmq/context.h"
 
 #include <Windows.h>
 
@@ -11,11 +12,13 @@ namespace linkollector::win {
 class main_window final {
 
 public:
-    explicit main_window(HINSTANCE instance, int cmd_show) noexcept;
+    explicit main_window(HINSTANCE instance,
+                         int cmd_show,
+                         wrappers::zmq::context &ctx) noexcept;
     main_window(const main_window &other) = delete;
     main_window &operator=(const main_window &other) = delete;
-    main_window(main_window &&other) noexcept = default;
-    main_window &operator=(main_window &&other) noexcept = default;
+    main_window(main_window &&other) noexcept = delete;
+    main_window &operator=(main_window &&other) noexcept = delete;
     ~main_window() noexcept = default;
 
     [[nodiscard]] HWND get() noexcept;
@@ -76,6 +79,8 @@ private:
     HWND m_radio_button_message_type_text = nullptr;
     HWND m_button_send = nullptr;
     constexpr static const int m_button_send_id = 101;
+
+    wrappers::zmq::context &m_ctx;
 };
 
 } // namespace linkollector::win

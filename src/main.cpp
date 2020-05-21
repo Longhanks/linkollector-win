@@ -1,5 +1,6 @@
 #include "dark_mode.h"
 #include "main_window.h"
+#include "wrappers/zmq/context.h"
 
 #include <cstdlib>
 
@@ -11,6 +12,8 @@ int WINAPI wWinMain(HINSTANCE instance,
                     [[maybe_unused]] HINSTANCE hPrevInstance,
                     [[maybe_unused]] PWSTR pCmdLine,
                     int cmd_show) {
+    wrappers::zmq::context ctx;
+
     linkollector::win::init_dark_mode_support();
 
     if (SetProcessDpiAwarenessContext(
@@ -29,7 +32,7 @@ int WINAPI wWinMain(HINSTANCE instance,
         return EXIT_FAILURE;
     }
 
-    linkollector::win::main_window main_window(instance, cmd_show);
+    linkollector::win::main_window main_window(instance, cmd_show, ctx);
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) != 0) {

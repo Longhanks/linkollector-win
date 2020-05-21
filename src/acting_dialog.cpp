@@ -11,13 +11,18 @@
 namespace linkollector::win {
 
 LRESULT
-acting_dialog::show(HINSTANCE instance, HWND parent, std::wstring_view title) {
-    acting_dialog dlg(instance, parent);
+acting_dialog::show(HINSTANCE instance,
+                    HWND parent,
+                    std::wstring_view title,
+                    wrappers::zmq::context &ctx) {
+    acting_dialog dlg(instance, parent, ctx);
     return dlg.show_(title);
 }
 
-acting_dialog::acting_dialog(HINSTANCE instance, HWND parent) noexcept
-    : m_instance(instance), m_parent(parent) {}
+acting_dialog::acting_dialog(HINSTANCE instance,
+                             HWND parent,
+                             wrappers::zmq::context &ctx) noexcept
+    : m_instance(instance), m_parent(parent), m_ctx(ctx) {}
 
 LRESULT
 acting_dialog::show_(std::wstring_view title) {
@@ -310,8 +315,14 @@ INT_PTR CALLBACK acting_dialog::dialog_proc(HWND hwnd,
     }
 
     case WM_COMMAND: {
+        auto *this_ = get_this();
+        if (this_ == nullptr) {
+            return 0;
+        }
+
         if (LOWORD(w_param) == acting_dialog::m_button_cancel_id) {
-            EndDialog(hwnd, TRUE);
+            this_->show_centered_message_box(L"Test", L"");
+            //            EndDialog(hwnd, TRUE);
         }
         return 0;
     }
@@ -323,6 +334,60 @@ INT_PTR CALLBACK acting_dialog::dialog_proc(HWND hwnd,
     }
 
     return FALSE;
+}
+
+LRESULT CALLBACK acting_dialog::centered_message_box_hook(
+    int code, WPARAM w_param, LPARAM l_param) noexcept {
+    if (code < 0) {
+        return CallNextHookEx(nullptr, code, w_param, l_param);
+    }
+
+    if (reinterpret_cast<CWPRETSTRUCT *>(l_param)->message != HCBT_ACTIVATE) {
+        return CallNextHookEx(nullptr, code, w_param, l_param);
+    }
+
+    HWND message_box = reinterpret_cast<CWPRETSTRUCT *>(l_param)->hwnd;
+    HWND parent = GetParent(message_box);
+
+    auto *this_ = reinterpret_cast<acting_dialog *>(
+        GetWindowLongPtrW(parent, GWLP_USERDATA));
+
+    RECT rect;
+    GetWindowRect(parent, &rect);
+
+    RECT rect_message_box;
+    GetWindowRect(message_box, &rect_message_box);
+
+    RECT rect_centered;
+    CopyRect(&rect_centered, &rect);
+    OffsetRect(
+        &rect_message_box, -rect_message_box.left, -rect_message_box.top);
+    OffsetRect(&rect_centered, -rect_centered.left, -rect_centered.top);
+    OffsetRect(
+        &rect_centered, -rect_message_box.right, -rect_message_box.bottom);
+
+    SetWindowPos(message_box,
+                 nullptr,
+                 rect.left + (rect_centered.right / 2),
+                 rect.top + (rect_centered.bottom / 2),
+                 0,
+                 0,
+                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
+
+    UnhookWindowsHookEx(this_->m_current_hook);
+    this_->m_current_hook = nullptr;
+
+    return CallNextHookEx(nullptr, code, w_param, l_param);
+}
+
+void acting_dialog::show_centered_message_box(
+    const std::wstring &text, const std::wstring &title) noexcept {
+    m_current_hook =
+        SetWindowsHookExW(WH_CALLWNDPROCRET,
+                          acting_dialog::centered_message_box_hook,
+                          nullptr,
+                          GetCurrentThreadId());
+    MessageBoxW(this->m_hwnd, text.c_str(), title.c_str(), 0);
 }
 
 } // namespace linkollector::win

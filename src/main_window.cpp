@@ -14,8 +14,10 @@
 
 namespace linkollector::win {
 
-main_window::main_window(HINSTANCE instance, int cmd_show) noexcept
-    : m_instance(instance), m_cmd_show(cmd_show) {
+main_window::main_window(HINSTANCE instance,
+                         int cmd_show,
+                         wrappers::zmq::context &ctx) noexcept
+    : m_instance(instance), m_cmd_show(cmd_show), m_ctx(ctx) {
     WNDCLASS wc;
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = main_window_proc;
@@ -743,11 +745,11 @@ void main_window::on_text_changed([[maybe_unused]] HWND text_field) noexcept {
 }
 
 void main_window::on_pressed_receive() noexcept {
-    acting_dialog::show(m_instance, m_hwnd, L"Receiving...");
+    acting_dialog::show(m_instance, m_hwnd, L"Receiving...", m_ctx);
 }
 
 void main_window::on_pressed_send() noexcept {
-    acting_dialog::show(m_instance, m_hwnd, L"Sending...");
+    acting_dialog::show(m_instance, m_hwnd, L"Sending...", m_ctx);
 }
 
 void main_window::apply_font() noexcept {
