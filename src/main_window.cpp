@@ -743,11 +743,11 @@ void main_window::on_text_changed([[maybe_unused]] HWND text_field) noexcept {
 }
 
 void main_window::on_pressed_receive() noexcept {
-    show_acting_dialog(m_instance, m_hwnd, L"Receiving...");
+    acting_dialog::show(m_instance, m_hwnd, L"Receiving...");
 }
 
 void main_window::on_pressed_send() noexcept {
-    show_acting_dialog(m_instance, m_hwnd, L"Sending...");
+    acting_dialog::show(m_instance, m_hwnd, L"Sending...");
 }
 
 void main_window::apply_font() noexcept {

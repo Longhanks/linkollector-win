@@ -1,6 +1,7 @@
 #include "acting_dialog.h"
 
 #include "constants.h"
+#include "dark_mode.h"
 
 #include <algorithm>
 #include <vector>
@@ -9,20 +10,78 @@
 
 namespace linkollector::win {
 
-constexpr static const int button_cancel_id = 100;
+LRESULT
+acting_dialog::show(HINSTANCE instance, HWND parent, std::wstring_view title) {
+    acting_dialog dlg(instance, parent);
+    return dlg.show_(title);
+}
 
-static HWND button_cancel = nullptr;
-static HWND progress_bar = nullptr;
-static HFONT font = nullptr;
-static int current_dpi = -1;
+acting_dialog::acting_dialog(HINSTANCE instance, HWND parent) noexcept
+    : m_instance(instance), m_parent(parent) {}
 
-static INT_PTR CALLBACK dialog_proc(HWND hwnd,
-                                    UINT message_code,
-                                    WPARAM w_param,
-                                    LPARAM l_param) {
+LRESULT
+acting_dialog::show_(std::wstring_view title) {
+    std::vector<std::byte> buf;
+    buf.resize(sizeof(DLGTEMPLATE) + sizeof(WORD) + sizeof(WORD) +
+                   (sizeof(wchar_t) * (title.size() + 1)),
+               static_cast<std::byte>(0));
+
+    auto *dialog_template = reinterpret_cast<LPDLGTEMPLATE>(buf.data());
+
+    dialog_template->style =
+        WS_POPUP | WS_BORDER | WS_SYSMENU | DS_MODALFRAME | WS_CAPTION;
+    dialog_template->cdit = 0;
+    dialog_template->x = 0;
+    dialog_template->y = 0;
+    dialog_template->cx = 0;
+    dialog_template->cy = 0;
+
+    const auto title_offset =
+        sizeof(DLGTEMPLATE) + sizeof(WORD) + sizeof(WORD);
+    auto *byte_title_pos = &(buf[title_offset]);
+    auto *title_pos = reinterpret_cast<wchar_t *>(byte_title_pos);
+
+    std::copy(std::begin(title), std::end(title), title_pos);
+
+    return DialogBoxIndirectParamW(m_instance,
+                                   dialog_template,
+                                   m_parent,
+                                   acting_dialog::dialog_proc,
+                                   reinterpret_cast<LPARAM>(this));
+}
+
+INT_PTR CALLBACK acting_dialog::dialog_proc(HWND hwnd,
+                                            UINT message_code,
+                                            WPARAM w_param,
+                                            LPARAM l_param) noexcept {
+    const auto get_this = [hwnd]() -> acting_dialog * {
+        return reinterpret_cast<acting_dialog *>(
+            GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    };
+
     switch (message_code) {
     case WM_INITDIALOG: {
-        current_dpi = static_cast<int>(GetDpiForWindow(hwnd));
+        auto *this_ = reinterpret_cast<acting_dialog *>(l_param);
+        SetWindowLongPtrW(
+            hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this_));
+        this_->m_hwnd = hwnd;
+        this_->m_current_dpi =
+            static_cast<int>(GetDpiForWindow(this_->m_hwnd));
+
+        enable_dark_mode(this_->m_hwnd, true);
+        if (is_dark_mode_enabled()) {
+            refresh_non_client_area(this_->m_hwnd);
+        }
+
+        LOGFONT log_font;
+        SystemParametersInfoForDpi(SPI_GETICONTITLELOGFONT,
+                                   sizeof(log_font),
+                                   &log_font,
+                                   FALSE,
+                                   static_cast<UINT>(this_->m_current_dpi));
+
+        this_->m_font = font(log_font);
+
         RECT main_window_client_rect;
         GetClientRect(hwnd, &main_window_client_rect);
 
@@ -33,18 +92,18 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
 
         main_window_client_rect.right =
             main_window_client_rect.left + MulDiv(ACTING_DIALOG_WIDTH_96,
-                                                  current_dpi,
+                                                  this_->m_current_dpi,
                                                   USER_DEFAULT_SCREEN_DPI);
         main_window_client_rect.bottom =
             main_window_client_rect.top + MulDiv(ACTING_DIALOG_HEIGHT_96,
-                                                 current_dpi,
+                                                 this_->m_current_dpi,
                                                  USER_DEFAULT_SCREEN_DPI);
 
         AdjustWindowRectExForDpi(&main_window_client_rect,
                                  WS_OVERLAPPEDWINDOW,
                                  FALSE,
                                  0,
-                                 static_cast<UINT>(current_dpi));
+                                 static_cast<UINT>(this_->m_current_dpi));
 
         MoveWindow(
             hwnd,
@@ -54,34 +113,27 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
             main_window_client_rect.bottom - main_window_client_rect.top,
             TRUE);
 
-        LOGFONT log_font;
-        SystemParametersInfoForDpi(SPI_GETICONTITLELOGFONT,
-                                   sizeof(log_font),
-                                   &log_font,
-                                   FALSE,
-                                   static_cast<UINT>(current_dpi));
-        font = CreateFontIndirectW(&log_font);
+        this_->m_progress_bar =
+            CreateWindowExW(0,
+                            PROGRESS_CLASS,
+                            nullptr,
+                            WS_VISIBLE | WS_CHILD | PBS_MARQUEE,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            nullptr,
+                            GetModuleHandleW(nullptr),
+                            nullptr);
 
-        progress_bar = CreateWindowExW(0,
-                                       PROGRESS_CLASS,
-                                       nullptr,
-                                       WS_VISIBLE | WS_CHILD | PBS_MARQUEE,
-                                       0,
-                                       0,
-                                       0,
-                                       0,
-                                       hwnd,
-                                       nullptr,
-                                       GetModuleHandleW(nullptr),
-                                       nullptr);
-
-        SendMessageW(progress_bar,
+        SendMessageW(this_->m_progress_bar,
                      PBM_SETMARQUEE,
                      TRUE,
                      PROGRESS_BAR_ANIMATION_MS_96 /
-                         (current_dpi / USER_DEFAULT_SCREEN_DPI));
+                         (this_->m_current_dpi / USER_DEFAULT_SCREEN_DPI));
 
-        button_cancel =
+        this_->m_button_cancel =
             CreateWindowExW(0,
                             WC_BUTTON,
                             L"Cancel",
@@ -91,23 +143,23 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
                             0,
                             0,
                             hwnd,
-                            reinterpret_cast<HMENU>(button_cancel_id),
+                            reinterpret_cast<HMENU>(this_->m_button_cancel_id),
                             GetModuleHandleW(nullptr),
                             nullptr);
 
-        SendMessageW(button_cancel,
+        SendMessageW(this_->m_button_cancel,
                      WM_SETFONT,
-                     reinterpret_cast<WPARAM>(font),
+                     reinterpret_cast<WPARAM>(this_->m_font.get()),
                      MAKELPARAM(TRUE, 0));
 
         SendMessageW(hwnd,
                      WM_SIZE,
                      0,
                      MAKELPARAM(MulDiv(ACTING_DIALOG_WIDTH_96,
-                                       current_dpi,
+                                       this_->m_current_dpi,
                                        USER_DEFAULT_SCREEN_DPI),
                                 MulDiv(ACTING_DIALOG_HEIGHT_96,
-                                       current_dpi,
+                                       this_->m_current_dpi,
                                        USER_DEFAULT_SCREEN_DPI)));
 
         HWND parent = GetParent(hwnd);
@@ -136,15 +188,22 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
     }
 
     case WM_SIZE: {
-        const int width = LOWORD(l_param);
-        const int height = HIWORD(l_param);
+        auto *this_ = get_this();
+        if (this_ == nullptr) {
+            return 0;
+        }
 
-        const auto progress_bar_width = MulDiv(
-            PROGRESS_BAR_WIDTH_96, current_dpi, USER_DEFAULT_SCREEN_DPI);
-        const auto progress_bar_height = MulDiv(
-            PROGRESS_BAR_HEIGHT_96, current_dpi, USER_DEFAULT_SCREEN_DPI);
+        const auto width = LOWORD(l_param);
+        const auto height = HIWORD(l_param);
 
-        SetWindowPos(progress_bar,
+        const auto progress_bar_width = MulDiv(PROGRESS_BAR_WIDTH_96,
+                                               this_->m_current_dpi,
+                                               USER_DEFAULT_SCREEN_DPI);
+        const auto progress_bar_height = MulDiv(PROGRESS_BAR_HEIGHT_96,
+                                                this_->m_current_dpi,
+                                                USER_DEFAULT_SCREEN_DPI);
+
+        SetWindowPos(this_->m_progress_bar,
                      nullptr,
                      (width / 2) - (progress_bar_width / 2),
                      (height / 3) - (progress_bar_height / 2),
@@ -152,16 +211,17 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
                      progress_bar_height,
                      SWP_NOZORDER | SWP_NOACTIVATE);
 
-        const int button_width_minimum = MulDiv(
-            BUTTON_WIDTH_MINIMUM_96, current_dpi, USER_DEFAULT_SCREEN_DPI);
+        const int button_width_minimum = MulDiv(BUTTON_WIDTH_MINIMUM_96,
+                                                this_->m_current_dpi,
+                                                USER_DEFAULT_SCREEN_DPI);
         SIZE button_size;
-        Button_GetIdealSize(button_cancel, &button_size);
+        Button_GetIdealSize(this_->m_button_cancel, &button_size);
 
         if (button_size.cx < button_width_minimum) {
             button_size.cx = button_width_minimum;
         }
 
-        SetWindowPos(button_cancel,
+        SetWindowPos(this_->m_button_cancel,
                      nullptr,
                      (width / 2) - (button_size.cx / 2),
                      ((height / 3) * 2) - (button_size.cy / 2),
@@ -173,6 +233,11 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
     }
 
     case WM_GETDPISCALEDSIZE: {
+        auto *this_ = get_this();
+        if (this_ == nullptr) {
+            return TRUE;
+        }
+
         int new_dpi = static_cast<int>(w_param);
         if (new_dpi == 0) {
             return TRUE;
@@ -180,7 +245,8 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
 
         SIZE *new_size = reinterpret_cast<SIZE *>(l_param);
 
-        const auto scaling_factor = static_cast<double>(new_dpi) / current_dpi;
+        const auto scaling_factor =
+            static_cast<double>(new_dpi) / this_->m_current_dpi;
 
         RECT client_area;
         GetClientRect(hwnd, &client_area);
@@ -199,12 +265,17 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
         new_size->cx = client_area.right - client_area.left;
         new_size->cy = client_area.bottom - client_area.top;
 
-        current_dpi = new_dpi;
+        this_->m_current_dpi = new_dpi;
 
         return TRUE;
     }
 
     case WM_DPICHANGED: {
+        auto *this_ = get_this();
+        if (this_ == nullptr) {
+            return 0;
+        }
+
         auto *new_rect = reinterpret_cast<RECT *>(l_param);
 
         LOGFONT log_font;
@@ -212,24 +283,20 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
                                    sizeof(log_font),
                                    &log_font,
                                    FALSE,
-                                   static_cast<UINT>(current_dpi));
+                                   static_cast<UINT>(this_->m_current_dpi));
 
-        if (font != nullptr) {
-            DeleteObject(font);
-        }
+        this_->m_font = font(log_font);
 
-        font = CreateFontIndirectW(&log_font);
-
-        SendMessageW(button_cancel,
+        SendMessageW(this_->m_button_cancel,
                      WM_SETFONT,
-                     reinterpret_cast<WPARAM>(font),
+                     reinterpret_cast<WPARAM>(this_->m_font.get()),
                      MAKELPARAM(TRUE, 0));
 
-        SendMessageW(progress_bar,
+        SendMessageW(this_->m_progress_bar,
                      PBM_SETMARQUEE,
                      TRUE,
                      PROGRESS_BAR_ANIMATION_MS_96 /
-                         (current_dpi / USER_DEFAULT_SCREEN_DPI));
+                         (this_->m_current_dpi / USER_DEFAULT_SCREEN_DPI));
 
         SetWindowPos(hwnd,
                      nullptr,
@@ -243,56 +310,19 @@ static INT_PTR CALLBACK dialog_proc(HWND hwnd,
     }
 
     case WM_COMMAND: {
-        if (LOWORD(w_param) == IDOK || LOWORD(w_param) == button_cancel_id) {
+        if (LOWORD(w_param) == acting_dialog::m_button_cancel_id) {
             EndDialog(hwnd, TRUE);
-            return TRUE;
         }
-        break;
+        return 0;
     }
+
     case WM_CLOSE: {
         EndDialog(hwnd, TRUE);
-        return TRUE;
+        return 0;
     }
     }
 
     return FALSE;
-}
-
-LRESULT
-show_acting_dialog(HINSTANCE instance, HWND parent, std::wstring_view title) {
-    std::vector<std::byte> buf;
-    buf.resize(sizeof(DLGTEMPLATE) + sizeof(WORD) + sizeof(WORD) +
-                   (sizeof(wchar_t) * (title.size() + 1)),
-               static_cast<std::byte>(0));
-
-    auto *dialog_template = reinterpret_cast<LPDLGTEMPLATE>(buf.data());
-
-    dialog_template->style =
-        WS_POPUP | WS_BORDER | WS_SYSMENU | DS_MODALFRAME | WS_CAPTION;
-    dialog_template->cdit = 0;
-    dialog_template->x = 0;
-    dialog_template->y = 0;
-    dialog_template->cx = 0;
-    dialog_template->cy = 0;
-
-    const auto title_offset =
-        sizeof(DLGTEMPLATE) + sizeof(WORD) + sizeof(WORD);
-    auto *byte_title_pos = &(buf[title_offset]);
-    auto *title_pos = reinterpret_cast<wchar_t *>(byte_title_pos);
-
-    std::copy(std::begin(title), std::end(title), title_pos);
-
-    const auto return_value =
-        DialogBoxIndirectParamW(instance,
-                                reinterpret_cast<LPDLGTEMPLATE>(buf.data()),
-                                parent,
-                                dialog_proc,
-                                0L);
-
-    DeleteObject(font);
-    font = nullptr;
-
-    return return_value;
 }
 
 } // namespace linkollector::win
