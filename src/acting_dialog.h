@@ -1,5 +1,6 @@
 #pragma once
 
+#include "activity.h"
 #include "font.h"
 #include "wrappers/zmq/context.h"
 #include "wrappers/zmq/socket.h"
@@ -15,20 +16,26 @@ namespace linkollector::win {
 class acting_dialog {
 
 public:
-    enum class action { receiving, sending };
-
     acting_dialog(const acting_dialog &other) = delete;
     acting_dialog &operator=(const acting_dialog &other) = delete;
     acting_dialog(acting_dialog &&other) noexcept = delete;
     acting_dialog &operator=(acting_dialog &&other) noexcept = delete;
     ~acting_dialog() noexcept;
 
-    static LRESULT show(HINSTANCE instance,
-                        HWND parent,
-                        action action_,
-                        wrappers::zmq::context &ctx);
+    static LRESULT show_receiving(HINSTANCE instance,
+                                  HWND parent,
+                                  wrappers::zmq::context &ctx);
+
+    static LRESULT show_sending(HINSTANCE instance,
+                                HWND parent,
+                                wrappers::zmq::context &ctx,
+                                std::wstring server,
+                                activity activity_,
+                                std::wstring message);
 
 private:
+    enum class action { receiving, sending };
+
     // WPARAM: 0
     // LPARAM: std::wstring *
     constexpr static const UINT WM_LINKOLLECTOR_ERROR = WM_APP + 1;
@@ -37,10 +44,17 @@ private:
     // LPARAM: std::wstring *
     constexpr static const UINT WM_LINKOLLECTOR_RECEVIED = WM_APP + 2;
 
+    // WPARAM: 0
+    // LPARAM: 0
+    constexpr static const UINT WM_LINKOLLECTOR_SENT = WM_APP + 3;
+
     explicit acting_dialog(action action_,
                            HINSTANCE instance,
                            HWND parent,
-                           wrappers::zmq::context &ctx) noexcept;
+                           wrappers::zmq::context &ctx,
+                           std::wstring server,
+                           activity activity_,
+                           std::wstring message) noexcept;
 
     LRESULT show_() noexcept;
 
@@ -60,6 +74,13 @@ private:
                              wrappers::zmq::socket &signal_socket,
                              wrappers::zmq::socket &tcp_socket) noexcept;
 
+    static void loop_send(HWND hwnd,
+                          wrappers::zmq::socket &signal_socket,
+                          wrappers::zmq::socket &tcp_socket,
+                          const std::wstring &server,
+                          activity activity_,
+                          const std::wstring &message) noexcept;
+
     action m_action;
 
     HINSTANCE m_instance = nullptr;
@@ -78,6 +99,11 @@ private:
     std::unique_ptr<std::thread> m_worker_thread = nullptr;
 
     HHOOK m_current_hook = nullptr;
+
+    // Only for sending
+    std::wstring m_server;
+    activity m_activity;
+    std::wstring m_message;
 };
 
 } // namespace linkollector::win

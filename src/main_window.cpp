@@ -50,10 +50,13 @@ HWND main_window::get() noexcept {
 }
 
 std::wstring main_window::hwnd_window_text(HWND hwnd) noexcept {
-    const auto hwnd_string_size = GetWindowTextLengthW(hwnd);
+    const auto hwnd_string_size = GetWindowTextLengthW(hwnd) + 1;
     std::wstring hwnd_string;
     hwnd_string.resize(static_cast<std::size_t>(hwnd_string_size));
     GetWindowTextW(hwnd, hwnd_string.data(), hwnd_string_size);
+    if (hwnd_string[hwnd_string.size() - 1] == L'\0') {
+        hwnd_string.resize(hwnd_string.size() - 1);
+    }
     return hwnd_string;
 }
 
@@ -745,13 +748,20 @@ void main_window::on_text_changed([[maybe_unused]] HWND text_field) noexcept {
 }
 
 void main_window::on_pressed_receive() noexcept {
-    acting_dialog::show(
-        m_instance, m_hwnd, acting_dialog::action::receiving, m_ctx);
+    acting_dialog::show_receiving(m_instance, m_hwnd, m_ctx);
 }
 
 void main_window::on_pressed_send() noexcept {
-    acting_dialog::show(
-        m_instance, m_hwnd, acting_dialog::action::sending, m_ctx);
+    std::wstring server = hwnd_window_text(m_text_field_to_device);
+    const bool checked_url =
+        Button_GetCheck(m_radio_button_message_type_url) == BST_CHECKED;
+    std::wstring message = hwnd_window_text(m_text_field_message_content);
+    acting_dialog::show_sending(m_instance,
+                                m_hwnd,
+                                m_ctx,
+                                std::move(server),
+                                checked_url ? activity::url : activity::text,
+                                std::move(message));
 }
 
 void main_window::apply_font() noexcept {

@@ -1,6 +1,5 @@
 #include "acting_dialog.h"
 
-#include "activity.h"
 #include "constants.h"
 #include "dark_mode.h"
 #include "handlers.h"
@@ -39,19 +38,41 @@ acting_dialog::~acting_dialog() noexcept {
 }
 
 LRESULT
-acting_dialog::show(HINSTANCE instance,
-                    HWND parent,
-                    action action_,
-                    wrappers::zmq::context &ctx) {
-    acting_dialog dlg(action_, instance, parent, ctx);
+acting_dialog::show_receiving(HINSTANCE instance,
+                              HWND parent,
+                              wrappers::zmq::context &ctx) {
+    acting_dialog dlg(
+        action::receiving, instance, parent, ctx, L"", activity::text, L"");
+    return dlg.show_();
+}
+
+LRESULT
+acting_dialog::show_sending(HINSTANCE instance,
+                            HWND parent,
+                            wrappers::zmq::context &ctx,
+                            std::wstring server,
+                            activity activity_,
+                            std::wstring message) {
+    acting_dialog dlg(action::sending,
+                      instance,
+                      parent,
+                      ctx,
+                      std::move(server),
+                      activity_,
+                      std::move(message));
     return dlg.show_();
 }
 
 acting_dialog::acting_dialog(action action_,
                              HINSTANCE instance,
                              HWND parent,
-                             wrappers::zmq::context &ctx) noexcept
-    : m_action(action_), m_instance(instance), m_parent(parent), m_ctx(ctx) {}
+                             wrappers::zmq::context &ctx,
+                             std::wstring server,
+                             activity activity_,
+                             std::wstring message) noexcept
+    : m_action(action_), m_instance(instance), m_parent(parent), m_ctx(ctx),
+      m_server(std::move(server)), m_activity(activity_),
+      m_message(std::move(message)) {}
 
 LRESULT
 acting_dialog::show_() noexcept {
@@ -241,7 +262,17 @@ INT_PTR CALLBACK acting_dialog::dialog_proc(HWND hwnd,
                 std::ref(*this_->m_signal_socket),
                 std::ref(*this_->m_tcp_socket));
         } else {
-            this_->show_centered_message_box(L"Not implemented", L"Error");
+            this_->m_tcp_socket = std::make_unique<wrappers::zmq::socket>(
+                this_->m_ctx, wrappers::zmq::socket::type::req);
+
+            this_->m_worker_thread = std::make_unique<std::thread>(
+                acting_dialog::loop_send,
+                hwnd,
+                std::ref(*this_->m_signal_socket),
+                std::ref(*this_->m_tcp_socket),
+                std::ref(this_->m_server),
+                this_->m_activity,
+                std::ref(this_->m_message));
         }
 
         return TRUE;
@@ -421,6 +452,11 @@ INT_PTR CALLBACK acting_dialog::dialog_proc(HWND hwnd,
             LINKOLLECTOR_UNREACHABLE;
         }
 
+        EndDialog(hwnd, TRUE);
+        return 0;
+    }
+
+    case acting_dialog::WM_LINKOLLECTOR_SENT: {
         EndDialog(hwnd, TRUE);
         return 0;
     }
@@ -604,6 +640,131 @@ void acting_dialog::loop_receive(HWND hwnd,
             }
         }
     }
+}
+
+void acting_dialog::loop_send(HWND hwnd,
+                              wrappers::zmq::socket &signal_socket,
+                              wrappers::zmq::socket &tcp_socket,
+                              const std::wstring &server,
+                              const activity activity_,
+                              const std::wstring &message) noexcept {
+    const auto post_error = [hwnd](const wchar_t *error_msg) {
+        PostMessageW(hwnd,
+                     WM_LINKOLLECTOR_ERROR,
+                     0,
+                     reinterpret_cast<LPARAM>(new std::wstring(error_msg)));
+    };
+
+    const int server_utf8_characters =
+        WideCharToMultiByte(CP_UTF8,
+                            0,
+                            server.c_str(),
+                            static_cast<int>(server.size()),
+                            nullptr,
+                            0,
+                            nullptr,
+                            nullptr);
+
+    std::string server_utf8(static_cast<std::size_t>(server_utf8_characters),
+                            '\0');
+
+    WideCharToMultiByte(CP_UTF8,
+                        0,
+                        server.c_str(),
+                        static_cast<int>(server.size()),
+                        server_utf8.data(),
+                        server_utf8_characters,
+                        nullptr,
+                        nullptr);
+
+    std::string s = "tcp://" + server_utf8 + ":17729";
+
+    if (!tcp_socket.connect("tcp://" + server_utf8 + ":17729")) {
+        post_error(L"Failed to connect the TCP requester socket");
+        return;
+    }
+
+    const int message_utf8_characters =
+        WideCharToMultiByte(CP_UTF8,
+                            0,
+                            message.c_str(),
+                            static_cast<int>(message.size()),
+                            nullptr,
+                            0,
+                            nullptr,
+                            nullptr);
+
+    std::string message_utf8(static_cast<std::size_t>(message_utf8_characters),
+                             '\0');
+
+    WideCharToMultiByte(CP_UTF8,
+                        0,
+                        message.c_str(),
+                        static_cast<int>(message.size()),
+                        message_utf8.data(),
+                        message_utf8_characters,
+                        nullptr,
+                        nullptr);
+
+    std::string data;
+    data += activity_to_string(activity_);
+    data += activity_delimiter;
+    data += message_utf8;
+
+    if (!tcp_socket.blocking_send(
+            {static_cast<std::byte *>(static_cast<void *>(data.data())),
+             data.size()})) {
+        post_error(L"Failed to send data to the TCP requester socket");
+        return;
+    }
+
+    std::array<wrappers::zmq::poll_target, 2> items = {
+        wrappers::zmq::poll_target(signal_socket,
+                                   wrappers::zmq::poll_event::in),
+        wrappers::zmq::poll_target(tcp_socket, wrappers::zmq::poll_event::in),
+    };
+
+    bool break_loop = false;
+
+    while (!break_loop) {
+        auto maybe_responses = wrappers::zmq::blocking_poll(items);
+
+        if (!maybe_responses.has_value()) {
+            post_error(L"Failure in zmq_poll, killing client...");
+            break;
+        }
+
+        const auto responses = std::move(*maybe_responses);
+
+        if (responses.empty()) {
+            continue;
+        }
+
+        for (const auto &response : responses) {
+            if (response.response_socket == &signal_socket &&
+                response.response_event == wrappers::zmq::poll_event::in) {
+
+                if (!signal_socket.blocking_receive()) {
+                    post_error(L"Failed to receive answer from signal socket");
+                }
+                break_loop = true;
+                break;
+            }
+
+            if (response.response_socket == &tcp_socket &&
+                response.response_event == wrappers::zmq::poll_event::in) {
+
+                if (!tcp_socket.async_receive(nullptr, nullptr)) {
+                    post_error(L"Failure in zmq_msg_recv, killing client...");
+                }
+
+                break_loop = true;
+                break;
+            }
+        }
+    }
+
+    PostMessageW(hwnd, acting_dialog::WM_LINKOLLECTOR_SENT, 0, 0);
 }
 
 } // namespace linkollector::win
