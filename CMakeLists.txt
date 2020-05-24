@@ -63,6 +63,7 @@ add_executable(${PROJECT_NAME} WIN32
     src/wrappers/zmq/poll_target.cpp
     src/wrappers/zmq/socket.cpp
     src/acting_dialog.cpp
+    src/activity.cpp
     src/constants.cpp
     src/dark_mode.cpp
     src/font.cpp

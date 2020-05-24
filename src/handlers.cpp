@@ -7,20 +7,12 @@
 
 namespace linkollector::win {
 
-void handle_url(const std::string &url) noexcept {
-    const int wide_char_characters =
-        MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, nullptr, 0);
-
-    std::wstring out(static_cast<std::size_t>(wide_char_characters), L'\0');
-
-    MultiByteToWideChar(
-        CP_UTF8, 0, url.c_str(), -1, out.data(), wide_char_characters);
-
+void handle_url(const std::wstring &url) noexcept {
     ShellExecuteW(
-        nullptr, nullptr, out.data(), nullptr, nullptr, SW_SHOWNORMAL);
+        nullptr, nullptr, url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 }
 
-void handle_text(const std::string &text) noexcept {
+void handle_text(const std::wstring &text) noexcept {
     HWND notepad_window = nullptr;
     STARTUPINFOW startupInfo{};
     PROCESS_INFORMATION processInfo{};
@@ -64,16 +56,8 @@ void handle_text(const std::string &text) noexcept {
         }
     }
 
-    const int wide_char_characters =
-        MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
-
-    std::wstring out(static_cast<std::size_t>(wide_char_characters), L'\0');
-
-    MultiByteToWideChar(
-        CP_UTF8, 0, text.c_str(), -1, out.data(), wide_char_characters);
-
     auto *child = FindWindowExW(notepad_window, nullptr, L"Edit", nullptr);
-    SendMessageW(child, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(out.data()));
+    SendMessageW(child, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
 }
 
 } // namespace linkollector::win

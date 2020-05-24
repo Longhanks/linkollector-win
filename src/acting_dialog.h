@@ -2,35 +2,47 @@
 
 #include "font.h"
 #include "wrappers/zmq/context.h"
+#include "wrappers/zmq/socket.h"
 
 #include <Windows.h>
 
+#include <memory>
 #include <string>
+#include <thread>
 
 namespace linkollector::win {
 
 class acting_dialog {
 
 public:
+    enum class action { receiving, sending };
+
     acting_dialog(const acting_dialog &other) = delete;
     acting_dialog &operator=(const acting_dialog &other) = delete;
     acting_dialog(acting_dialog &&other) noexcept = delete;
     acting_dialog &operator=(acting_dialog &&other) noexcept = delete;
-    ~acting_dialog() noexcept = default;
+    ~acting_dialog() noexcept;
 
     static LRESULT show(HINSTANCE instance,
                         HWND parent,
-                        std::wstring_view title,
+                        action action_,
                         wrappers::zmq::context &ctx);
 
 private:
-    constexpr static const UINT WM_LINKOLLECTOR_RECEIVED = WM_APP + 1;
+    // WPARAM: 0
+    // LPARAM: std::wstring *
+    constexpr static const UINT WM_LINKOLLECTOR_ERROR = WM_APP + 1;
 
-    explicit acting_dialog(HINSTANCE instance,
+    // WPARAM: activity
+    // LPARAM: std::wstring *
+    constexpr static const UINT WM_LINKOLLECTOR_RECEVIED = WM_APP + 2;
+
+    explicit acting_dialog(action action_,
+                           HINSTANCE instance,
                            HWND parent,
                            wrappers::zmq::context &ctx) noexcept;
 
-    LRESULT show_(std::wstring_view title);
+    LRESULT show_() noexcept;
 
     static INT_PTR CALLBACK dialog_proc(HWND hwnd,
                                         UINT message_code,
@@ -44,6 +56,12 @@ private:
                                                       WPARAM w_param,
                                                       LPARAM l_param) noexcept;
 
+    static void loop_receive(HWND hwnd,
+                             wrappers::zmq::socket &signal_socket,
+                             wrappers::zmq::socket &tcp_socket) noexcept;
+
+    action m_action;
+
     HINSTANCE m_instance = nullptr;
     HWND m_hwnd = nullptr;
     HWND m_parent = nullptr;
@@ -55,6 +73,9 @@ private:
     HWND m_progress_bar = nullptr;
 
     wrappers::zmq::context &m_ctx;
+    std::unique_ptr<wrappers::zmq::socket> m_signal_socket = nullptr;
+    std::unique_ptr<wrappers::zmq::socket> m_tcp_socket = nullptr;
+    std::unique_ptr<std::thread> m_worker_thread = nullptr;
 
     HHOOK m_current_hook = nullptr;
 };

@@ -1,1 +1,1 @@
-Checks: '*,-fuchsia-*,-modernize-use-trailing-return-type,-google-runtime-references'
+Checks: '*,-cppcoreguidelines-pro-type-reinterpret-cast,-fuchsia-*,-modernize-use-trailing-return-type,-google-runtime-references,-hicpp-signed-bitwise'
