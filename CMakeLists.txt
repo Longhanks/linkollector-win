@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.17)
 
 enable_language(CXX)
 
-project(linkollector-win LANGUAGES CXX VERSION 0.0.1)
+project(linkollector-win LANGUAGES CXX VERSION 1.0.0)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version" FORCE)
