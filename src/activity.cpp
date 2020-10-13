@@ -1,5 +1,7 @@
 #include "activity.h"
 
+#include <algorithm>
+
 namespace linkollector::win {
 
 std::string activity_to_string(activity activity_) noexcept {

@@ -218,7 +218,8 @@ void main_window::on_create() noexcept {
                         0,
                         0,
                         m_hwnd,
-                        reinterpret_cast<HMENU>(m_button_receive_id),
+                        reinterpret_cast<HMENU>(
+                            static_cast<std::int32_t>(m_button_receive_id)),
                         m_instance,
                         nullptr);
 
@@ -369,18 +370,19 @@ void main_window::on_create() noexcept {
                         m_instance,
                         nullptr);
 
-    m_button_send = CreateWindowExW(0,
-                                    WC_BUTTON,
-                                    L"Send...",
-                                    WS_TABSTOP | WS_VISIBLE | WS_CHILD,
-                                    0,
-                                    0,
-                                    0,
-                                    0,
-                                    m_hwnd,
-                                    reinterpret_cast<HMENU>(m_button_send_id),
-                                    m_instance,
-                                    nullptr);
+    m_button_send = CreateWindowExW(
+        0,
+        WC_BUTTON,
+        L"Send...",
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD,
+        0,
+        0,
+        0,
+        0,
+        m_hwnd,
+        reinterpret_cast<HMENU>(static_cast<std::int32_t>(m_button_send_id)),
+        m_instance,
+        nullptr);
     Button_Enable(m_button_send, FALSE);
 
     apply_font();

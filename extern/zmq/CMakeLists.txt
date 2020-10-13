@@ -3,7 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
         zmq
         GIT_REPOSITORY    https://github.com/zeromq/libzmq
-        GIT_TAG           v4.3.2
+        GIT_TAG           v4.3.3
 )
 
 FetchContent_GetProperties(zmq)
@@ -12,9 +12,12 @@ if(NOT zmq_POPULATED)
     FetchContent_Populate(zmq)
     set(BUILD_SHARED OFF CACHE INTERNAL "")
     set(BUILD_STATIC ON CACHE INTERNAL "")
+    set(WITH_LIBSODIUM OFF CACHE INTERNAL "")
     set(WITH_PERF_TOOL OFF CACHE INTERNAL "")
     set(ZMQ_BUILD_TESTS OFF CACHE INTERNAL "")
     set(ENABLE_CPACK OFF CACHE INTERNAL "")
+    set(ENABLE_WS OFF CACHE INTERNAL "")
+    set(ENABLE_PRECOMPILED OFF CACHE INTERNAL "")
 
     if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
         set(POLLER "kqueue" CACHE INTERNAL "")

@@ -192,19 +192,20 @@ INT_PTR CALLBACK acting_dialog::dialog_proc(HWND hwnd,
                      PROGRESS_BAR_ANIMATION_MS_96 /
                          (this_->m_current_dpi / USER_DEFAULT_SCREEN_DPI));
 
-        this_->m_button_cancel = CreateWindowExW(
-            0,
-            WC_BUTTON,
-            L"Cancel",
-            WS_TABSTOP | WS_VISIBLE | WS_CHILD,
-            0,
-            0,
-            0,
-            0,
-            hwnd,
-            reinterpret_cast<HMENU>(acting_dialog::m_button_cancel_id),
-            GetModuleHandleW(nullptr),
-            nullptr);
+        this_->m_button_cancel =
+            CreateWindowExW(0,
+                            WC_BUTTON,
+                            L"Cancel",
+                            WS_TABSTOP | WS_VISIBLE | WS_CHILD,
+                            0,
+                            0,
+                            0,
+                            0,
+                            hwnd,
+                            reinterpret_cast<HMENU>(static_cast<std::int32_t>(
+                                acting_dialog::m_button_cancel_id)),
+                            GetModuleHandleW(nullptr),
+                            nullptr);
 
         SendMessageW(this_->m_button_cancel,
                      WM_SETFONT,
@@ -599,14 +600,14 @@ void acting_dialog::loop_receive(HWND hwnd,
                     maybe_data_ = deserialize(msg);
                 };
 
-                if (did_error) {
+                if (!tcp_socket.async_receive(static_cast<void *>(&payload),
+                                              on_message)) {
+                    post_error(L"Failure in zmq_msg_recv, killing server...");
                     break_loop = true;
                     break;
                 }
 
-                if (!tcp_socket.async_receive(static_cast<void *>(&payload),
-                                              on_message)) {
-                    post_error(L"Failure in zmq_msg_recv, killing server...");
+                if (did_error) {
                     break_loop = true;
                     break;
                 }

@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.18)
 
 enable_language(CXX)
 
-project(linkollector-win LANGUAGES CXX VERSION 1.0.0)
+project(linkollector-win LANGUAGES CXX VERSION 1.0.1)
 
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version" FORCE)
 endif()
 
@@ -41,7 +41,7 @@ if("${CMAKE_GENERATOR}" STREQUAL "Ninja" AND
 endif()
 
 if(MSVC)
-    foreach (flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+    foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
         string(REPLACE "/W3" "" ${flag_var} "${${flag_var}}")
         string(REPLACE "/EHc" "" ${flag_var} "${${flag_var}}")
         string(REPLACE "/EHsc" "" ${flag_var} "${${flag_var}}")
@@ -218,6 +218,7 @@ set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
+set(CPACK_NSIS_MANIFEST_DPI_AWARE ON)
 if(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
     set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
 endif()
